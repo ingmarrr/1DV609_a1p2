@@ -17,13 +17,14 @@ pub fn help(args: &[String], writer: &mut dyn Write) -> Result<(), ExecError> {
         0 => {
             writer.write(&usage().as_bytes());
         }
-        /// Can only be one argument, since we check in the exec function if
-        /// the user provided too many arguments.
+        // Can only be one argument, since we check in the exec function if
+        // the user provided too many arguments.
         _ => {
             let cmd = find_or(&args[0], ExecError::InvalidArg(args[0].clone()))?;
             writer.write(&format!("Usage:\n  {}\n", cmd).as_bytes());
         }
     };
+    writer.flush();
     Ok(())
 }
 
