@@ -268,4 +268,21 @@ pub mod tests {
             }
         );
     }
+
+    #[test]
+    fn tokenizer_should_return_eof_on_next_after_one_token() {
+        let tokenizer = Tokenizer::new("123");
+        assert_eq!(
+            tokenizer.next(),
+            Token {
+                kind: TokenKind::Int
+            }
+        );
+        assert_eq!(
+            tokenizer.next(),
+            Token {
+                kind: TokenKind::Eof
+            }
+        );
+    }
 }
