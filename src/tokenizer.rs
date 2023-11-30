@@ -35,7 +35,8 @@ pub enum TokenKind {
     PowAssign,
 
     Ident,
-    Number,
+    Int,
+    Float,
     String,
     Invalid,
     Eof,
@@ -78,6 +79,20 @@ impl TokenKind {
             "/=" => DivAssign,
             "%=" => ModAssign,
             "^=" => PowAssign,
+            "\0" => Eof,
+
+            st if st.starts_with('"') && st.ends_with('"') => String,
+            st if st.chars().all(|c| c.is_ascii_digit()) => Int,
+            st if st.chars().filter(|c| *c == '.').count() == 1
+                && st.chars().all(|c| c.is_ascii_digit() || c == '.') =>
+            {
+                Float
+            }
+            st if st.chars().next().unwrap().is_ascii_alphabetic()
+                && st.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') =>
+            {
+                Ident
+            }
             _ => Invalid,
         }
     }
@@ -120,7 +135,8 @@ impl std::fmt::Display for TokenKind {
             TokenKind::ModAssign => write!(f, "%="),
             TokenKind::PowAssign => write!(f, "^="),
             TokenKind::Ident => write!(f, "identifier"),
-            TokenKind::Number => write!(f, "number"),
+            TokenKind::Int => write!(f, "integer"),
+            TokenKind::Float => write!(f, "float"),
             TokenKind::String => write!(f, "string"),
             TokenKind::Invalid => write!(f, "invalid"),
             TokenKind::Eof => write!(f, "EOF"),
@@ -133,6 +149,16 @@ pub mod tests {
     use super::*;
 
     macro_rules! assert_tkind {
+        (var, $variant:ident ($from:expr) => $string:expr) => {
+            assert_eq!($variant.to_string(), $string);
+            assert_eq!(TokenKind::from_str($from), $variant);
+        };
+        (var, $( $variant:ident ($from:expr) => $string:expr ),*) => {
+            $(
+                assert_eq!($variant.to_string(), $string);
+                assert_eq!(TokenKind::from_str($from), $variant);
+            )*
+        };
         ($variant:ident => $string:expr) => {
             assert_eq!(TokenKind::$variant.to_string(), $string);
             assert_eq!(TokenKind::from_str($string).unwrap(), TokenKind::$variant);
@@ -182,6 +208,15 @@ pub mod tests {
             DivAssign => "/=",
             ModAssign => "%=",
             PowAssign => "^="
+        };
+
+        assert_tkind! { var,
+            Ident ("foo") => "identifier",
+            Int ("123") => "integer",
+            Float ("123.456") => "float",
+            String (r#""hello world""#) => "string",
+            Invalid ("@") => "invalid",
+            Eof ("\0") => "EOF"
         };
     }
 }
