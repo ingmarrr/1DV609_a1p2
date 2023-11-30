@@ -12,9 +12,27 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
-    pub fn next(&self) -> Token {
+    pub fn next(&mut self) -> Token {
+        match self.src.peek() {
+            Some(c) if c.is_ascii_digit() => self.read_number(),
+            _ => Token {
+                kind: TokenKind::Eof,
+            },
+        }
+    }
+
+    fn read_number(&mut self) -> Token {
+        let mut s = String::new();
+        while let Some(c) = self.src.peek() {
+            if c.is_ascii_digit() {
+                s.push(*c);
+                self.src.next();
+            } else {
+                break;
+            }
+        }
         Token {
-            kind: TokenKind::Eof,
+            kind: TokenKind::Int,
         }
     }
 }
@@ -260,7 +278,7 @@ pub mod tests {
 
     #[test]
     fn tokenizer_empty_should_return_eof_on_next() {
-        let tokenizer = Tokenizer::new("");
+        let mut tokenizer = Tokenizer::new("");
         assert_eq!(
             tokenizer.next(),
             Token {
@@ -271,7 +289,7 @@ pub mod tests {
 
     #[test]
     fn tokenizer_should_return_eof_on_next_after_one_token() {
-        let tokenizer = Tokenizer::new("123");
+        let mut tokenizer = Tokenizer::new("123");
         assert_eq!(
             tokenizer.next(),
             Token {
