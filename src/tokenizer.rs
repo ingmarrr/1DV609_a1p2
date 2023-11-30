@@ -12,20 +12,21 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
-    pub fn next(&mut self) -> Token {
+    pub fn next_token(&mut self) -> Token {
         match self.src.peek() {
             Some(c) if c.is_ascii_digit() => self.read_number(),
             _ => Token {
                 kind: TokenKind::Eof,
+                lexeme: "\0".into(),
             },
         }
     }
 
     fn read_number(&mut self) -> Token {
-        let mut s = String::new();
+        let mut lexeme = String::new();
         while let Some(c) = self.src.peek() {
             if c.is_ascii_digit() {
-                s.push(*c);
+                lexeme.push(*c);
                 self.src.next();
             } else {
                 break;
@@ -33,6 +34,7 @@ impl<'a> Tokenizer<'a> {
         }
         Token {
             kind: TokenKind::Int,
+            lexeme,
         }
     }
 }
@@ -40,6 +42,7 @@ impl<'a> Tokenizer<'a> {
 #[derive(Debug, PartialEq, Eq)]
 pub struct Token {
     kind: TokenKind,
+    lexeme: String,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -280,9 +283,10 @@ pub mod tests {
     fn tokenizer_empty_should_return_eof_on_next() {
         let mut tokenizer = Tokenizer::new("");
         assert_eq!(
-            tokenizer.next(),
+            tokenizer.next_token(),
             Token {
-                kind: TokenKind::Eof
+                kind: TokenKind::Eof,
+                lexeme: "\0".into()
             }
         );
     }
@@ -291,15 +295,17 @@ pub mod tests {
     fn tokenizer_should_return_eof_on_next_after_one_token() {
         let mut tokenizer = Tokenizer::new("123");
         assert_eq!(
-            tokenizer.next(),
+            tokenizer.next_token(),
             Token {
-                kind: TokenKind::Int
+                kind: TokenKind::Int,
+                lexeme: "123".into()
             }
         );
         assert_eq!(
-            tokenizer.next(),
+            tokenizer.next_token(),
             Token {
-                kind: TokenKind::Eof
+                kind: TokenKind::Eof,
+                lexeme: "\0".into()
             }
         );
     }
