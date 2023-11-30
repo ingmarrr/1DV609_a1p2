@@ -76,17 +76,35 @@ pub struct Cmd {
     pub func: Func,
 }
 
-const CMDS: &[Cmd] = &[Cmd {
-    name: "help",
-    description: "Prints the list of commands available.",
-    func: help,
-}];
+const CMDS: &[Cmd] = &[
+    Cmd {
+        name: "help",
+        description: "Prints the list of commands available.",
+        func: help,
+    },
+    Cmd {
+        name: "repl",
+        description: "Starts the REPL.",
+        func: repl,
+    },
+];
 
 pub fn help(args: &[String], writer: &mut dyn Writer) -> Result<(), ExecError> {
     match args.len() {
         0 => writer.write(&usage()),
+        1 => {
+            let cmd = CMDS
+                .iter()
+                .find(|c| c.name == args[0])
+                .ok_or_else(|| ExecError::InvalidArg(args[0].clone()))?;
+            writer.writeln(&format!("Usage:\n  {:<10} - {}", cmd.name, cmd.description));
+        }
         _ => return Err(ExecError::InvalidArg(args[0].clone())),
     }
+    Ok(())
+}
+
+pub fn repl(_: &[String], writer: &mut dyn Writer) -> Result<(), ExecError> {
     Ok(())
 }
 
@@ -146,9 +164,11 @@ pub mod tests {
     fn help_should_print_usage_for_command() {
         let args = vec!["help".into(), "repl".into()];
         let mut writer = BufWriter::new();
-        let result = help(&args, &mut writer);
+        let result = exec(&args, &mut writer);
+        println!("Buf: {}", writer.buf);
         assert!(result.is_ok());
-        let expected = format!("Usage:\n  {:<10} - {}\n", "help", CMDS[0].description);
+        let replcmd = CMDS.iter().find(|c| c.name == "repl").unwrap();
+        let expected = format!("Usage:\n  {:<10} - {}\n", replcmd.name, replcmd.description);
         assert_eq!(writer.buf, expected);
     }
 }
