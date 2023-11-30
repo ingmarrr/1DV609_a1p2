@@ -292,13 +292,32 @@ pub mod tests {
     }
 
     #[test]
-    fn tokenizer_should_return_eof_on_next_after_one_token() {
+    fn tokenizer_should_return_int_on_next() {
         let mut tokenizer = Tokenizer::new("123");
         assert_eq!(
             tokenizer.next_token(),
             Token {
                 kind: TokenKind::Int,
                 lexeme: "123".into()
+            }
+        );
+        assert_eq!(
+            tokenizer.next_token(),
+            Token {
+                kind: TokenKind::Eof,
+                lexeme: "\0".into()
+            }
+        );
+    }
+
+    #[test]
+    fn tokenizer_should_return_float_on_next() {
+        let mut tokenizer = Tokenizer::new("123.456");
+        assert_eq!(
+            tokenizer.next_token(),
+            Token {
+                kind: TokenKind::Float,
+                lexeme: "123.456".into()
             }
         );
         assert_eq!(
