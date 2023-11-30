@@ -1,3 +1,21 @@
+pub type Func = fn(&[String]) -> Result<(), ExecError>;
+
+pub struct Cmd {
+    pub name: &'static str,
+    pub description: &'static str,
+    pub func: Func,
+}
+
+const CMDS: &[Cmd] = &[Cmd {
+    name: "help",
+    description: "Prints this help message",
+    func: help,
+}];
+
+pub fn help(args: &[String]) -> Result<(), ExecError> {
+    Ok(())
+}
+
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum ExecError {
     #[error("No arguments provided")]
@@ -8,10 +26,13 @@ pub enum ExecError {
 }
 
 pub fn exec(args: &[String]) -> Result<(), ExecError> {
-    match args.len() {
-        0 => Err(ExecError::NoArgs),
-        _ => Err(ExecError::InvalidArg(args[0].clone())),
-    }
+    let (cmd, args) = args.split_first().ok_or(ExecError::NoArgs)?;
+    let cmd = CMDS
+        .iter()
+        .find(|c| c.name == cmd)
+        .ok_or_else(|| ExecError::InvalidArg(cmd.to_string()))?;
+
+    Ok(())
 }
 
 #[cfg(test)]
