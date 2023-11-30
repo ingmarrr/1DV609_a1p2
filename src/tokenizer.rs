@@ -82,14 +82,21 @@ impl TokenKind {
             "\0" => Eof,
 
             st if st.starts_with('"') && st.ends_with('"') => String,
-            st if st.chars().all(|c| c.is_ascii_digit()) => Int,
-            st if st.chars().filter(|c| *c == '.').count() == 1
+            st if st.len() > 0
+                && st.chars().next().unwrap().is_ascii_digit()
+                && st.chars().all(|c| c.is_ascii_digit() || c == '_') =>
+            {
+                Int
+            }
+            st if st.len() > 0
+                && st.chars().filter(|c| *c == '.').count() == 1
                 && st.chars().all(|c| c.is_ascii_digit() || c == '.') =>
             {
                 Float
             }
-            st if st.chars().next().unwrap().is_ascii_alphabetic()
-                && st.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') =>
+            st if st.len() > 0 && st.chars().next().unwrap().is_ascii_alphabetic()
+                || st.starts_with('_')
+                    && st.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') =>
             {
                 Ident
             }
@@ -212,8 +219,13 @@ pub mod tests {
 
         assert_tkind! { var,
             Ident ("foo") => "identifier",
+            Ident ("_foo") => "identifier",
+            Ident ("foo123") => "identifier",
+            Ident ("foo") => "identifier",
             Int ("123") => "integer",
+            Int ("123_000") => "integer",
             Float ("123.456") => "float",
+            Float (".456") => "float",
             String (r#""hello world""#) => "string",
             Invalid ("@") => "invalid",
             Eof ("\0") => "EOF"
