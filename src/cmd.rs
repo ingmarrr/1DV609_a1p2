@@ -32,7 +32,7 @@ pub fn exec(args: &[String]) -> Result<(), ExecError> {
         .find(|c| c.name == cmd)
         .ok_or_else(|| ExecError::InvalidArg(cmd.to_string()))?;
 
-    Ok(())
+    ExecError::NoArgs
 }
 
 #[cfg(test)]
@@ -55,5 +55,12 @@ pub mod tests {
             result.unwrap_err(),
             ExecError::InvalidArg("foo".to_string())
         );
+    }
+
+    #[test]
+    fn exec_fn_should_ok_on_valid_arg() {
+        let args = vec!["help".to_string()];
+        let result = exec(&args);
+        assert!(result.is_ok());
     }
 }
