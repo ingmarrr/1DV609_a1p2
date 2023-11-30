@@ -24,8 +24,16 @@ impl<'a> Tokenizer<'a> {
 
     fn read_number(&mut self) -> Token {
         let mut lexeme = String::new();
+        let mut found_dot = false;
         while let Some(c) = self.src.peek() {
             if c.is_ascii_digit() {
+                lexeme.push(*c);
+                self.src.next();
+            } else if *c == '.' {
+                if found_dot {
+                    break;
+                }
+                found_dot = true;
                 lexeme.push(*c);
                 self.src.next();
             } else {
@@ -33,7 +41,11 @@ impl<'a> Tokenizer<'a> {
             }
         }
         Token {
-            kind: TokenKind::Int,
+            kind: if found_dot {
+                TokenKind::Float
+            } else {
+                TokenKind::Int
+            },
             lexeme,
         }
     }
