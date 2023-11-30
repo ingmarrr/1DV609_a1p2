@@ -2,12 +2,25 @@ pub type Func = fn(&[String], &mut dyn Writer) -> Result<(), ExecError>;
 
 pub fn exec(args: &[String], writer: &mut dyn Writer) -> Result<(), ExecError> {
     let (cmd, args) = args.split_first().ok_or(ExecError::NoArgs)?;
-    let cmd = CMDS
-        .iter()
-        .find(|c| c.name == cmd)
-        .ok_or_else(|| ExecError::InvalidArg(cmd.to_string()))?;
+    let cmd = find_or(cmd, ExecError::InvalidArg(cmd.clone()))?;
 
     (cmd.func)(args, writer)
+}
+
+pub fn help(args: &[String], writer: &mut dyn Writer) -> Result<(), ExecError> {
+    match args.len() {
+        0 => writer.write(&usage()),
+        1 => {
+            let cmd = find_or(&args[0], ExecError::InvalidArg(args[0].clone()))?;
+            writer.writeln(&format!("Usage:\n  {:<10} - {}", cmd.name, cmd.description));
+        }
+        _ => return Err(ExecError::InvalidArg(args[0].clone())),
+    }
+    Ok(())
+}
+
+pub fn repl(_: &[String], writer: &mut dyn Writer) -> Result<(), ExecError> {
+    Ok(())
 }
 
 pub trait Writer {
@@ -89,31 +102,16 @@ const CMDS: &[Cmd] = &[
     },
 ];
 
-pub fn help(args: &[String], writer: &mut dyn Writer) -> Result<(), ExecError> {
-    match args.len() {
-        0 => writer.write(&usage()),
-        1 => {
-            let cmd = CMDS
-                .iter()
-                .find(|c| c.name == args[0])
-                .ok_or_else(|| ExecError::InvalidArg(args[0].clone()))?;
-            writer.writeln(&format!("Usage:\n  {:<10} - {}", cmd.name, cmd.description));
-        }
-        _ => return Err(ExecError::InvalidArg(args[0].clone())),
-    }
-    Ok(())
-}
-
-pub fn repl(_: &[String], writer: &mut dyn Writer) -> Result<(), ExecError> {
-    Ok(())
-}
-
-pub fn usage() -> String {
+fn usage() -> String {
     let mut buf = String::from("Usage:\n");
     for cmd in CMDS {
         buf.push_str(&format!("  {:<10} - {}\n", cmd.name, cmd.description));
     }
     buf
+}
+
+fn find_or(cmd: &str, err: ExecError) -> Result<&Cmd, ExecError> {
+    CMDS.iter().find(|c| c.name == cmd).ok_or(err)
 }
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
@@ -167,7 +165,7 @@ pub mod tests {
         let result = exec(&args, &mut writer);
         println!("Buf: {}", writer.buf);
         assert!(result.is_ok());
-        let replcmd = CMDS.iter().find(|c| c.name == "repl").unwrap();
+        let replcmd = find_or("repl", ExecError::InvalidArg("repl".into())).unwrap();
         let expected = format!("Usage:\n  {:<10} - {}\n", replcmd.name, replcmd.description);
         assert_eq!(writer.buf, expected);
     }
