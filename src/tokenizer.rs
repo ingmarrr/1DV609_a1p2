@@ -26,18 +26,23 @@ impl<'a> Tokenizer<'a> {
         let mut lexeme = String::new();
         let mut found_dot = false;
         while let Some(c) = self.src.peek() {
-            if c.is_ascii_digit() {
-                lexeme.push(*c);
-                self.src.next();
-            } else if *c == '.' {
-                if found_dot {
-                    break;
+            match c {
+                '0'..='9' => {
+                    lexeme.push(*c);
+                    self.src.next();
                 }
-                found_dot = true;
-                lexeme.push(*c);
-                self.src.next();
-            } else {
-                break;
+                '.' => {
+                    if found_dot {
+                        break;
+                    }
+                    found_dot = true;
+                    lexeme.push(*c);
+                    self.src.next();
+                }
+                '_' => {
+                    self.src.next();
+                }
+                _ => break,
             }
         }
         Token {
@@ -305,12 +310,12 @@ pub mod tests {
 
     #[test]
     fn tokenizer_should_return_int_on_next() {
-        let mut tokenizer = Tokenizer::new("123");
+        let mut tokenizer = Tokenizer::new("123_456");
         assert_eq!(
             tokenizer.next_token(),
             Token {
                 kind: TokenKind::Int,
-                lexeme: "123".into()
+                lexeme: "123456".into()
             }
         );
         assert_eq!(
