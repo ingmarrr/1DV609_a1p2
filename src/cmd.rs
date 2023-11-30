@@ -23,6 +23,55 @@ pub fn repl(_: &[String], writer: &mut dyn Writer) -> Result<(), ExecError> {
     Ok(())
 }
 
+pub fn sim(_: &[String], writer: &mut dyn Writer) -> Result<(), ExecError> {
+    Ok(())
+}
+
+fn usage() -> String {
+    let mut buf = String::from("Usage:\n");
+    for cmd in CMDS {
+        buf.push_str(&format!("  {:<10} - {}\n", cmd.name, cmd.description));
+    }
+    buf
+}
+
+fn find_or(cmd: &str, err: ExecError) -> Result<&Cmd, ExecError> {
+    CMDS.iter().find(|c| c.name == cmd).ok_or(err)
+}
+
+#[derive(Debug, thiserror::Error, PartialEq, Eq)]
+pub enum ExecError {
+    #[error("No arguments provided")]
+    NoArgs,
+
+    #[error("Invalid argument: {0}")]
+    InvalidArg(String),
+}
+
+pub struct Cmd {
+    pub name: &'static str,
+    pub description: &'static str,
+    pub func: Func,
+}
+
+const CMDS: &[Cmd] = &[
+    Cmd {
+        name: "help",
+        description: "Prints the list of commands available.",
+        func: help,
+    },
+    Cmd {
+        name: "repl",
+        description: "Starts the REPL.",
+        func: repl,
+    },
+    Cmd {
+        name: "sim",
+        description: "Simulates a program.",
+        func: sim,
+    },
+];
+
 pub trait Writer {
     fn write(&mut self, s: &str);
     fn writeln(&mut self, s: &str) {
@@ -83,46 +132,6 @@ impl Writer for BufWriter {
     }
 }
 
-pub struct Cmd {
-    pub name: &'static str,
-    pub description: &'static str,
-    pub func: Func,
-}
-
-const CMDS: &[Cmd] = &[
-    Cmd {
-        name: "help",
-        description: "Prints the list of commands available.",
-        func: help,
-    },
-    Cmd {
-        name: "repl",
-        description: "Starts the REPL.",
-        func: repl,
-    },
-];
-
-fn usage() -> String {
-    let mut buf = String::from("Usage:\n");
-    for cmd in CMDS {
-        buf.push_str(&format!("  {:<10} - {}\n", cmd.name, cmd.description));
-    }
-    buf
-}
-
-fn find_or(cmd: &str, err: ExecError) -> Result<&Cmd, ExecError> {
-    CMDS.iter().find(|c| c.name == cmd).ok_or(err)
-}
-
-#[derive(Debug, thiserror::Error, PartialEq, Eq)]
-pub enum ExecError {
-    #[error("No arguments provided")]
-    NoArgs,
-
-    #[error("Invalid argument: {0}")]
-    InvalidArg(String),
-}
-
 #[cfg(test)]
 pub mod tests {
     use super::*;
@@ -168,5 +177,12 @@ pub mod tests {
         let replcmd = find_or("repl", ExecError::InvalidArg("repl".into())).unwrap();
         let expected = format!("Usage:\n  {:<10} - {}\n", replcmd.name, replcmd.description);
         assert_eq!(writer.buf, expected);
+    }
+
+    #[test]
+    fn sim_should_err_on_missing_file() {
+        let args = vec!["sim".into()];
+        let result = exec(&args, &mut NoopWriter::new());
+        assert!(result.is_err());
     }
 }
