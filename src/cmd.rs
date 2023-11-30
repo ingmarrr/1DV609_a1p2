@@ -24,7 +24,7 @@ pub fn repl(_: &[String], writer: &mut dyn Writer) -> Result<(), ExecError> {
 }
 
 pub fn sim(_: &[String], writer: &mut dyn Writer) -> Result<(), ExecError> {
-    Ok(())
+    Err(ExecError::MissingArgs)
 }
 
 fn usage() -> String {
@@ -46,6 +46,9 @@ pub enum ExecError {
 
     #[error("Invalid argument: {0}")]
     InvalidArg(String),
+
+    #[error("Missing arguments.")]
+    MissingArgs,
 }
 
 pub struct Cmd {
@@ -184,5 +187,6 @@ pub mod tests {
         let args = vec!["sim".into()];
         let result = exec(&args, &mut NoopWriter::new());
         assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), ExecError::MissingArgs);
     }
 }
