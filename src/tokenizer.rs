@@ -231,4 +231,10 @@ pub mod tests {
             Eof ("\0") => "EOF"
         };
     }
+
+    #[test]
+    fn tokenizer_empty_should_return_eof_on_next() {
+        let mut tokenizer = Tokenizer::new("");
+        assert_eq!(tokenizer.next(), Token::new(TokenKind::Eof, 0, 0));
+    }
 }
