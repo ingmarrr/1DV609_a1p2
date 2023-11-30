@@ -1,8 +1,11 @@
-pub fn exec(args: &[String]) -> Result<(), std::io::Error> {
-    Err(std::io::Error::new(
-        std::io::ErrorKind::Other,
-        "No arguments provided.",
-    ))
+#[dervie(Debug, thiserror::Error, PartialEq, Eq)]
+pub enum ExecError {
+    #[error("No arguments provided")]
+    NoArgs,
+}
+
+pub fn exec(args: &[String]) -> Result<(), ExecError> {
+    Err(ExecError::NoArgs)
 }
 
 #[cfg(test)]
