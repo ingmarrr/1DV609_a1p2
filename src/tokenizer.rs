@@ -1,3 +1,29 @@
+use std::{iter::Peekable, str::Chars};
+
+#[derive(Debug)]
+pub struct Tokenizer<'a> {
+    src: Peekable<Chars<'a>>,
+}
+
+impl<'a> Tokenizer<'a> {
+    pub fn new(input: &'a str) -> Self {
+        Tokenizer {
+            src: input.chars().peekable(),
+        }
+    }
+
+    pub fn next(&self) -> Token {
+        Token {
+            kind: TokenKind::Eof,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct Token {
+    kind: TokenKind,
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum TokenKind {
     Add,
@@ -234,7 +260,12 @@ pub mod tests {
 
     #[test]
     fn tokenizer_empty_should_return_eof_on_next() {
-        let mut tokenizer = Tokenizer::new("");
-        assert_eq!(tokenizer.next(), Token::new(TokenKind::Eof, 0, 0));
+        let tokenizer = Tokenizer::new("");
+        assert_eq!(
+            tokenizer.next(),
+            Token {
+                kind: TokenKind::Eof
+            }
+        );
     }
 }
