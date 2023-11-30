@@ -1,7 +1,21 @@
 pub type Func = fn(&[String], &mut dyn Writer) -> Result<(), ExecError>;
 
+pub fn exec(args: &[String], writer: &mut dyn Writer) -> Result<(), ExecError> {
+    let (cmd, args) = args.split_first().ok_or(ExecError::NoArgs)?;
+    let cmd = CMDS
+        .iter()
+        .find(|c| c.name == cmd)
+        .ok_or_else(|| ExecError::InvalidArg(cmd.to_string()))?;
+
+    (cmd.func)(args, writer)
+}
+
 pub trait Writer {
     fn write(&mut self, s: &str);
+    fn writeln(&mut self, s: &str) {
+        self.write(s);
+        self.write("\n");
+    }
 }
 
 pub struct NoopWriter {}
@@ -14,6 +28,25 @@ impl NoopWriter {
 
 impl Writer for NoopWriter {
     fn write(&mut self, _: &str) {}
+    fn writeln(&mut self, s: &str) {}
+}
+
+pub struct StdoutWriter {}
+
+impl StdoutWriter {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl Writer for StdoutWriter {
+    fn write(&mut self, s: &str) {
+        print!("{}", s);
+    }
+
+    fn writeln(&mut self, s: &str) {
+        println!("{}", s);
+    }
 }
 
 pub struct BufWriter {
@@ -29,6 +62,11 @@ impl BufWriter {
 impl Writer for BufWriter {
     fn write(&mut self, s: &str) {
         self.buf.push_str(s);
+    }
+
+    fn writeln(&mut self, s: &str) {
+        self.buf.push_str(s);
+        self.buf.push_str("\n");
     }
 }
 
@@ -67,16 +105,6 @@ pub enum ExecError {
 
     #[error("Invalid argument: {0}")]
     InvalidArg(String),
-}
-
-pub fn exec(args: &[String], writer: &mut dyn Writer) -> Result<(), ExecError> {
-    let (cmd, args) = args.split_first().ok_or(ExecError::NoArgs)?;
-    let cmd = CMDS
-        .iter()
-        .find(|c| c.name == cmd)
-        .ok_or_else(|| ExecError::InvalidArg(cmd.to_string()))?;
-
-    (cmd.func)(args, writer)
 }
 
 #[cfg(test)]
