@@ -141,4 +141,14 @@ pub mod tests {
         assert!(result.is_ok());
         assert_eq!(writer.buf, usage());
     }
+
+    #[test]
+    fn help_should_print_usage_for_command() {
+        let args = vec!["help".into(), "repl".into()];
+        let mut writer = BufWriter::new();
+        let result = help(&args, &mut writer);
+        assert!(result.is_ok());
+        let expected = format!("Usage:\n  {:<10} - {}\n", "help", CMDS[0].description);
+        assert_eq!(writer.buf, expected);
+    }
 }
