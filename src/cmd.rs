@@ -1,29 +1,37 @@
-pub type Func = fn(&[String], &mut dyn Writer) -> Result<(), ExecError>;
+use std::io::Write;
 
-pub fn exec(args: &[String], writer: &mut dyn Writer) -> Result<(), ExecError> {
+pub type Func = fn(&[String], &mut dyn Write) -> Result<(), ExecError>;
+
+pub fn exec(args: &[String], writer: &mut dyn Write) -> Result<(), ExecError> {
     let (cmd, args) = args.split_first().ok_or(ExecError::NoArgs)?;
     let cmd = find_or(cmd, ExecError::InvalidArg(cmd.clone()))?;
+    if args.len() > cmd.args.len() {
+        return Err(ExecError::TooManyArgs(args[cmd.args.len()].clone()));
+    }
 
     (cmd.func)(args, writer)
 }
 
-pub fn help(args: &[String], writer: &mut dyn Writer) -> Result<(), ExecError> {
+pub fn help(args: &[String], writer: &mut dyn Write) -> Result<(), ExecError> {
     match args.len() {
-        0 => writer.write(&usage()),
-        1 => {
-            let cmd = find_or(&args[0], ExecError::InvalidArg(args[0].clone()))?;
-            writer.writeln(&format!("Usage:\n  {}", cmd));
+        0 => {
+            writer.write(&usage().as_bytes());
         }
-        _ => return Err(ExecError::InvalidArg(args[0].clone())),
-    }
+        /// Can only be one argument, since we check in the exec function if
+        /// the user provided too many arguments.
+        _ => {
+            let cmd = find_or(&args[0], ExecError::InvalidArg(args[0].clone()))?;
+            writer.write(&format!("Usage:\n  {}\n", cmd).as_bytes());
+        }
+    };
     Ok(())
 }
 
-pub fn repl(_: &[String], writer: &mut dyn Writer) -> Result<(), ExecError> {
+pub fn repl(_: &[String], writer: &mut dyn Write) -> Result<(), ExecError> {
     Ok(())
 }
 
-pub fn sim(_: &[String], writer: &mut dyn Writer) -> Result<(), ExecError> {
+pub fn sim(_: &[String], writer: &mut dyn Write) -> Result<(), ExecError> {
     Err(ExecError::MissingArgs)
 }
 
@@ -94,14 +102,6 @@ const CMDS: &[Cmd] = &[
     },
 ];
 
-pub trait Writer {
-    fn write(&mut self, s: &str);
-    fn writeln(&mut self, s: &str) {
-        self.write(s);
-        self.write("\n");
-    }
-}
-
 pub struct NoopWriter {}
 
 impl NoopWriter {
@@ -110,26 +110,13 @@ impl NoopWriter {
     }
 }
 
-impl Writer for NoopWriter {
-    fn write(&mut self, _: &str) {}
-    fn writeln(&mut self, s: &str) {}
-}
-
-pub struct StdoutWriter {}
-
-impl StdoutWriter {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
-
-impl Writer for StdoutWriter {
-    fn write(&mut self, s: &str) {
-        print!("{}", s);
+impl Write for NoopWriter {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        Ok(buf.len())
     }
 
-    fn writeln(&mut self, s: &str) {
-        println!("{}", s);
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
     }
 }
 
@@ -143,14 +130,14 @@ impl BufWriter {
     }
 }
 
-impl Writer for BufWriter {
-    fn write(&mut self, s: &str) {
-        self.buf.push_str(s);
+impl Write for BufWriter {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.buf.push_str(std::str::from_utf8(buf).unwrap());
+        Ok(buf.len())
     }
 
-    fn writeln(&mut self, s: &str) {
-        self.buf.push_str(s);
-        self.buf.push_str("\n");
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
     }
 }
 
