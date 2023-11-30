@@ -12,7 +12,7 @@ pub fn help(args: &[String], writer: &mut dyn Writer) -> Result<(), ExecError> {
         0 => writer.write(&usage()),
         1 => {
             let cmd = find_or(&args[0], ExecError::InvalidArg(args[0].clone()))?;
-            writer.writeln(&format!("Usage:\n  {:<10} - {}", cmd.name, cmd.description));
+            writer.writeln(&format!("Usage:\n  {}", cmd));
         }
         _ => return Err(ExecError::InvalidArg(args[0].clone())),
     }
@@ -30,7 +30,7 @@ pub fn sim(_: &[String], writer: &mut dyn Writer) -> Result<(), ExecError> {
 fn usage() -> String {
     let mut buf = String::from("Usage:\n");
     for cmd in CMDS {
-        buf.push_str(&format!("  {:<10} - {}\n", cmd.name, cmd.description));
+        buf.push_str(&format!("  {}\n", cmd));
     }
     buf
 }
@@ -53,23 +53,39 @@ pub enum ExecError {
 
 pub struct Cmd {
     pub name: &'static str,
+    pub args: &'static [&'static str],
     pub description: &'static str,
     pub func: Func,
+}
+
+impl std::fmt::Display for Cmd {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{:<10} {:<10} - {}",
+            self.name,
+            self.args.join(" "),
+            self.description
+        )
+    }
 }
 
 const CMDS: &[Cmd] = &[
     Cmd {
         name: "help",
+        args: &["<command>"],
         description: "Prints the list of commands available.",
         func: help,
     },
     Cmd {
         name: "repl",
+        args: &[],
         description: "Starts the REPL.",
         func: repl,
     },
     Cmd {
         name: "sim",
+        args: &["<file>"],
         description: "Simulates a program.",
         func: sim,
     },
@@ -178,7 +194,7 @@ pub mod tests {
         println!("Buf: {}", writer.buf);
         assert!(result.is_ok());
         let replcmd = find_or("repl", ExecError::InvalidArg("repl".into())).unwrap();
-        let expected = format!("Usage:\n  {:<10} - {}\n", replcmd.name, replcmd.description);
+        let expected = format!("Usage:\n  {}\n", replcmd);
         assert_eq!(writer.buf, expected);
     }
 
