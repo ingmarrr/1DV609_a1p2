@@ -49,6 +49,9 @@ pub enum ExecError {
 
     #[error("Missing arguments.")]
     MissingArgs,
+
+    #[error("Too many arguments: {0}")]
+    TooManyArgs(String),
 }
 
 pub struct Cmd {
@@ -184,6 +187,14 @@ pub mod tests {
         let result = exec(&args, &mut writer);
         assert!(result.is_ok());
         assert_eq!(writer.buf, usage());
+    }
+
+    #[test]
+    fn exec_should_err_too_many_args_for_any_cmd() {
+        let args = vec!["help".into(), "foo".into(), "bar".into()];
+        let result = exec(&args, &mut NoopWriter::new());
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), ExecError::TooManyArgs("bar".into()));
     }
 
     #[test]
