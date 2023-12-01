@@ -17,18 +17,27 @@ impl<'a> Tokenizer<'a> {
     pub fn next_token(&mut self) -> Result<Token, TokenizerError> {
         match self.src.peek() {
             Some(c) if c.is_ascii_digit() => self.read_number(),
-            Some(c) if c == &'\"' => {
-                self.src.next();
-                Ok(Token {
-                    kind: TokenKind::String,
-                    lexeme: "Hello There :D".into(),
-                })
-            }
+            Some(c) if c == &'"' => self.read_string(),
             _ => Ok(Token {
                 kind: TokenKind::Eof,
                 lexeme: "\0".into(),
             }),
         }
+    }
+
+    fn read_string(&mut self) -> Result<Token, TokenizerError> {
+        self.src.next();
+        let mut lexeme = String::new();
+        while let Some(c) = self.src.next() {
+            if c == '"' {
+                return Ok(Token {
+                    kind: TokenKind::String,
+                    lexeme,
+                });
+            }
+            lexeme.push(c);
+        }
+        Err(TokenizerError::MultipleDots)
     }
 
     fn read_number(&mut self) -> Result<Token, TokenizerError> {
