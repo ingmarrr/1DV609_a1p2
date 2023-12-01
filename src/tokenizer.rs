@@ -7,6 +7,17 @@ pub struct Tokenizer<'a> {
     src: Peekable<Chars<'a>>,
 }
 
+macro_rules! if_next {
+    ($next:ident, $ch:expr, $kind:ident) => {
+        if $next == $ch {
+            return Ok(Token {
+                kind: TokenKind::$kind,
+                lexeme: TokenKind::$kind.to_string(),
+            });
+        }
+    };
+}
+
 impl<'a> Tokenizer<'a> {
     pub fn new(input: &'a str) -> Self {
         Tokenizer {
@@ -19,13 +30,7 @@ impl<'a> Tokenizer<'a> {
             Some(c) if c.is_ascii_digit() => self.read_number(),
             Some(c) if c == &'"' => self.read_string(),
             Some(c) if c.is_ascii_alphabetic() || c == &'_' => self.read_ident(),
-            Some(c) => {
-                let ch = self.src.next().unwrap();
-                Ok(Token {
-                    kind: TokenKind::from(ch),
-                    lexeme: format!("{ch}"),
-                })
-            }
+            Some(c) => self.read_char(),
             _ => Ok(Token {
                 kind: TokenKind::Eof,
                 lexeme: "\0".into(),
@@ -62,6 +67,31 @@ impl<'a> Tokenizer<'a> {
             lexeme.push(c);
         }
         Err(TokenizerError::UnterminatedString)
+    }
+
+    fn read_char(&mut self) -> Result<Token, TokenizerError> {
+        let ch = self.src.next().unwrap_or('\0');
+        match ch {
+            '+' | '-' | '*' | '/' | '%' | '^' | '!' | '<' | '>' | ':' | '=' | '&' | '|' => {
+                let next = self.src.peek().unwrap_or(&'\0');
+                let (kind, lexeme) = match TokenKind::try_from((&ch, next)) {
+                    Ok(kind) => {
+                        self.src.next();
+                        let lexeme = kind.to_string();
+                        (kind, lexeme)
+                    }
+                    Err(kind) => {
+                        let lexeme = kind.to_string();
+                        (kind, lexeme)
+                    }
+                };
+                Ok(Token { kind, lexeme })
+            }
+            ch => Ok(Token {
+                kind: TokenKind::from(ch),
+                lexeme: format!("{ch}"),
+            }),
+        }
     }
 
     fn read_number(&mut self) -> Result<Token, TokenizerError> {
@@ -125,12 +155,13 @@ pub enum TokenKind {
     Semicolon, // ;
     Bang,      // !
     Question,  // ?
-
-    // Double Character Symbols
-    Eq,        // ==
-    Neq,       // !=
     Lt,        // <
     Gt,        // >
+    Eq,        // =
+
+    // Double Character Symbols
+    Deq,       // ==
+    Neq,       // !=
     Leq,       // <=
     Geq,       // >=
     And,       // &&
@@ -152,6 +183,29 @@ pub enum TokenKind {
     String,
     Invalid,
     Eof,
+}
+
+impl TryFrom<(&char, &char)> for TokenKind {
+    type Error = Self;
+
+    fn try_from((fi, se): (&char, &char)) -> Result<Self, Self> {
+        match (*fi, *se) {
+            ('+', '=') => Ok(Self::AddAssign),
+            ('-', '=') => Ok(Self::SubAssign),
+            ('*', '=') => Ok(Self::MulAssign),
+            ('/', '=') => Ok(Self::DivAssign),
+            ('%', '=') => Ok(Self::ModAssign),
+            ('^', '=') => Ok(Self::PowAssign),
+            ('<', '=') => Ok(Self::Leq),
+            ('>', '=') => Ok(Self::Geq),
+            ('=', '=') => Ok(Self::Deq),
+            ('!', '=') => Ok(Self::Neq),
+            (':', '=') => Ok(Self::Assign),
+            ('&', '&') => Ok(Self::And),
+            ('|', '|') => Ok(Self::Or),
+            _ => Err(TokenKind::from(*fi)),
+        }
+    }
 }
 
 impl From<char> for TokenKind {
@@ -176,6 +230,9 @@ impl From<char> for TokenKind {
             ';' => Semicolon,
             '!' => Bang,
             '?' => Question,
+            '<' => Lt,
+            '>' => Gt,
+            '=' => Eq,
             '\t' | ' ' => HorizontalWs,
             '\n' | '\r' => VerticalWs,
             _ => Invalid,
@@ -270,6 +327,7 @@ impl std::fmt::Display for TokenKind {
             TokenKind::Bang => write!(f, "!"),
             TokenKind::Question => write!(f, "?"),
             TokenKind::Eq => write!(f, "="),
+            TokenKind::Deq => write!(f, "=="),
             TokenKind::Neq => write!(f, "!="),
             TokenKind::Lt => write!(f, "<"),
             TokenKind::Gt => write!(f, ">"),
@@ -471,7 +529,9 @@ pub mod tests {
 
     #[test]
     fn tokenizer_should_recognize_all_symbols() {
-        let mut tokenizer = Tokenizer::new("+ - * / ^ ( ) { } [ ] , . : ; ! ? ");
+        let mut tokenizer = Tokenizer::new(
+            "+ - * / ^ ( ) { } [ ] , . : ; ! ? < > == != := <= >= && || += -= *= /= %= ^= ",
+        );
         assert_ntkind! {
             tokenizer,
             Add,
@@ -490,7 +550,22 @@ pub mod tests {
             Colon,
             Semicolon,
             Bang,
-            Question
+            Question,
+            Lt,
+            Gt,
+            Deq,
+            Neq,
+            Assign,
+            Leq,
+            Geq,
+            And,
+            Or,
+            AddAssign,
+            SubAssign,
+            MulAssign,
+            DivAssign,
+            ModAssign,
+            PowAssign
         }
     }
 }
