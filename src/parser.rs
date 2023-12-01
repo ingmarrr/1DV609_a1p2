@@ -1,3 +1,15 @@
+pub struct Parser {}
+
+impl Parser {
+    pub fn new<'a>(src: &'a str) -> Parser {
+        Parser {}
+    }
+
+    pub fn parse(&mut self) -> Result<Vec<u8>, String> {
+        Ok(vec![])
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
