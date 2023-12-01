@@ -1,4 +1,7 @@
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
+pub enum ParseError {}
+
+#[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum TokenizerError {
     #[error("Floating point number cannot contain multiple dots")]
     MultipleDots,

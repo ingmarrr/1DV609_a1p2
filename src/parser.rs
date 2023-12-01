@@ -1,12 +1,22 @@
-pub struct Parser {}
+use crate::{errors::ParseError, tokenizer::Tokenizer};
 
-impl Parser {
-    pub fn new<'a>(src: &'a str) -> Parser {
-        Parser {}
+#[cfg_attr(test, derive(PartialEq, Eq))]
+#[derive(Debug)]
+pub struct Prog {}
+
+pub struct Parser<'a> {
+    tkizer: Tokenizer<'a>,
+}
+
+impl<'a> Parser<'a> {
+    pub fn new(src: &'a str) -> Parser<'a> {
+        Parser::<'a> {
+            tkizer: Tokenizer::<'a>::new(src),
+        }
     }
 
-    pub fn parse(&mut self) -> Result<Vec<u8>, String> {
-        Ok(vec![])
+    pub fn parse(&mut self) -> Result<Prog, ParseError> {
+        Ok(Prog {})
     }
 }
 
@@ -18,7 +28,7 @@ mod tests {
     fn parse_should_ok_on_empty() {
         let mut parse = Parser::new("");
         let result = parse.parse();
-        assert_eq!(result, Ok(vec![]));
+        assert_eq!(result, Ok(Prog {}));
     }
 }
 
