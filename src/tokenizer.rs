@@ -342,4 +342,13 @@ pub mod tests {
         tokenizer_should_return_float,                  "123.123", Float, "123.123";
         tokenizer_should_return_float_with_underscores, "123_456.123", Float, "123456.123"
     }
+
+    #[test]
+    fn tokenizer_should_return_error_on_mulitple_dots() {
+        let tokenizer = Tokenizer::new("123.12.3.3.45.");
+        assert_eq! {
+            tokenizer.next_token(),
+            Err(TokenizerError::MultipleDots),
+        }
+    }
 }
