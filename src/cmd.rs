@@ -1,5 +1,7 @@
 use std::io::Write;
 
+use crate::errors::ExecError;
+
 pub type Func = fn(&[String], &mut dyn Write) -> Result<(), ExecError>;
 
 pub fn exec(args: &[String], writer: &mut dyn Write) -> Result<(), ExecError> {
@@ -46,21 +48,6 @@ fn usage() -> String {
 
 fn find_or(cmd: &str, err: ExecError) -> Result<&Cmd, ExecError> {
     CMDS.iter().find(|c| c.name == cmd).ok_or(err)
-}
-
-#[derive(Debug, thiserror::Error, PartialEq, Eq)]
-pub enum ExecError {
-    #[error("No arguments provided")]
-    NoArgs,
-
-    #[error("Invalid argument: {0}")]
-    InvalidArg(String),
-
-    #[error("Missing arguments.")]
-    MissingArgs,
-
-    #[error("Too many arguments: {0}")]
-    TooManyArgs(String),
 }
 
 pub struct Cmd {

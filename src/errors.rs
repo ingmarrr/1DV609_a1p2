@@ -1,4 +1,10 @@
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
+pub enum TokenizerError {
+    #[error("Floating point number cannot contain multiple dots")]
+    MultipleDots,
+}
+
+#[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum ExecError {
     #[error("No arguments provided")]
     NoArgs,

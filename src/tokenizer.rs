@@ -1,5 +1,7 @@
 use std::{iter::Peekable, str::Chars};
 
+use crate::errors::TokenizerError;
+
 #[derive(Debug)]
 pub struct Tokenizer<'a> {
     src: Peekable<Chars<'a>>,
@@ -12,17 +14,17 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
-    pub fn next_token(&mut self) -> Token {
+    pub fn next_token(&mut self) -> Result<Token, TokenizerError> {
         match self.src.peek() {
             Some(c) if c.is_ascii_digit() => self.read_number(),
-            _ => Token {
+            _ => Ok(Token {
                 kind: TokenKind::Eof,
                 lexeme: "\0".into(),
-            },
+            }),
         }
     }
 
-    fn read_number(&mut self) -> Token {
+    fn read_number(&mut self) -> Result<Token, TokenizerError> {
         let mut lexeme = String::new();
         let mut found_dot = false;
         while let Some(c) = self.src.peek() {
@@ -33,7 +35,7 @@ impl<'a> Tokenizer<'a> {
                 }
                 '.' => {
                     if found_dot {
-                        break;
+                        return Err(TokenizerError::MultipleDots);
                     }
                     found_dot = true;
                     lexeme.push(*c);
@@ -45,14 +47,14 @@ impl<'a> Tokenizer<'a> {
                 _ => break,
             }
         }
-        Token {
+        Ok(Token {
             kind: if found_dot {
                 TokenKind::Float
             } else {
                 TokenKind::Int
             },
             lexeme,
-        }
+        })
     }
 }
 
@@ -217,6 +219,8 @@ impl std::fmt::Display for TokenKind {
 
 #[cfg(test)]
 pub mod tests {
+    use crate::errors::TokenizerError;
+
     use super::*;
 
     macro_rules! assert_tkind {
@@ -301,10 +305,10 @@ pub mod tests {
         let mut tokenizer = Tokenizer::new("");
         assert_eq!(
             tokenizer.next_token(),
-            Token {
+            Ok(Token {
                 kind: TokenKind::Eof,
                 lexeme: "\0".into()
-            }
+            })
         );
     }
 
@@ -315,17 +319,17 @@ pub mod tests {
                 let mut tokenizer = Tokenizer::new($src);
                 assert_eq! {
                     tokenizer.next_token(),
-                    Token {
+                    Ok(Token {
                         kind: TokenKind::$kind,
                         lexeme: $expected.into()
-                    }
+                    })
                 }
                 assert_eq! {
                     tokenizer.next_token(),
-                    Token {
+                    Ok(Token {
                         kind: TokenKind::Eof,
                         lexeme: "\0".into(),
-                    }
+                    })
                 }
             }
         };
@@ -345,7 +349,7 @@ pub mod tests {
 
     #[test]
     fn tokenizer_should_return_error_on_mulitple_dots() {
-        let tokenizer = Tokenizer::new("123.12.3.3.45.");
+        let mut tokenizer = Tokenizer::new("123.12.3.3.45.");
         assert_eq! {
             tokenizer.next_token(),
             Err(TokenizerError::MultipleDots),
