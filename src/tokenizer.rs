@@ -99,39 +99,42 @@ pub struct Token {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum TokenKind {
-    Add,
-    Sub,
-    Mul,
-    Div,
-    Mod,
-    Pow,
-    Lparen,
-    Rparen,
-    Lbrace,
-    Rbrace,
-    Lbracket,
-    Rbracket,
-    Comma,
-    Dot,
-    Colon,
-    Semicolon,
-    Bang,
-    Question,
-    Eq,
-    Neq,
-    Lt,
-    Gt,
-    Leq,
-    Geq,
-    And,
-    Or,
-    Assign,
-    AddAssign,
-    SubAssign,
-    MulAssign,
-    DivAssign,
-    ModAssign,
-    PowAssign,
+    // Single Character Symbols
+    Add,       // +
+    Sub,       // -
+    Mul,       // *
+    Div,       // /
+    Mod,       // %
+    Pow,       // ^
+    Lparen,    // (
+    Rparen,    // )
+    Lbrace,    // {
+    Rbrace,    // }
+    Lbracket,  // [
+    Rbracket,  // ]
+    Comma,     // ,
+    Dot,       // .
+    Colon,     // :
+    Semicolon, // ;
+    Bang,      // !
+    Question,  // ?
+
+    // Double Character Symbols
+    Eq,        // ==
+    Neq,       // !=
+    Lt,        // <
+    Gt,        // >
+    Leq,       // <=
+    Geq,       // >=
+    And,       // &&
+    Or,        // ||
+    Assign,    // :=
+    AddAssign, // +=
+    SubAssign, // -=
+    MulAssign, // *=
+    DivAssign, // /=
+    ModAssign, // %=
+    PowAssign, // ^=
 
     Ident,
     Int,
@@ -399,15 +402,57 @@ pub mod tests {
         tokenizer_should_return_float_with_underscores, "123_456.123", Float, "123456.123";
         tokenizer_should_return_float_correctly_on_invalid_ident_char, "123.05#", Float, "123.05";
         tokenizer_should_return_string,                 "\"Hello There :D\"", String, "Hello There :D";
-        tokenizer_shuold_return_ident_regular,          "foo", Ident, "foo";
-        tokenizer_shuold_return_ident_front_underscore, "_foo", Ident, "_foo";
-        tokenizer_shuold_return_ident_on_underscore_and_uppercase, "foo_BAR", Ident, "foo_BAR";
-        tokenizer_shuold_return_ident_contains_digits,  "foo123", Ident, "foo123";
+        tokenizer_should_return_ident_regular,          "foo", Ident, "foo";
+        tokenizer_should_return_ident_front_underscore, "_foo", Ident, "_foo";
+        tokenizer_should_return_ident_on_underscore_and_uppercase, "foo_BAR", Ident, "foo_BAR";
+        tokenizer_should_return_ident_contains_digits,  "foo123", Ident, "foo123";
         tokenizer_should_return_ident_correctly_on_invalid_ident_char, "foo#", Ident, "foo"
     }
 
     err_next_token! {
         tokenizer_should_return_error_on_multiple_dots, "123.12.3.3.45.", MultipleDots;
         tokenizer_should_return_error_unterminated_string, "\"Hello There :D", UnterminatedString
+    }
+
+    macro_rules! assert_ntkind {
+        ($tk:ident, $kind:ident, $expected:expr) => {
+            assert_eq! {
+                $tk.next_token(),
+                Ok(Token {
+                    kind: TokenKind::$kind,
+                    lexeme: $expected.into(),
+                })
+            }
+        };
+        ($tk:ident, $($kind:ident),+) => {
+            $(
+                assert_ntkind!($tk, $kind, TokenKind::$kind.to_string());
+            )+
+        }
+    }
+
+    #[test]
+    fn tokenizer_should_recognize_all_symbosl() {
+        let mut tokenizer = Tokenizer::new("+ - * / ^ ( ) { } [ ] , . : ; ! ?");
+        assert_ntkind! {
+            tokenizer,
+            Add,
+            Sub,
+            Mul,
+            Div,
+            Pow,
+            Lparen,
+            Rparen,
+            Lbrace,
+            Rbrace,
+            Lbracket,
+            Rbracket,
+            Comma,
+            Dot,
+            Colon,
+            Semicolon,
+            Bang,
+            Question
+        }
     }
 }
