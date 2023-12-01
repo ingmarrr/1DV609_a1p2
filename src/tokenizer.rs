@@ -37,7 +37,7 @@ impl<'a> Tokenizer<'a> {
             }
             lexeme.push(c);
         }
-        Err(TokenizerError::MultipleDots)
+        Err(TokenizerError::UnterminatedString)
     }
 
     fn read_number(&mut self) -> Result<Token, TokenizerError> {
@@ -379,7 +379,11 @@ pub mod tests {
         tokenizer_should_return_int_without_underscores,"1234",    Int,   "1234";
         tokenizer_should_return_float_on_underscores,   "123.123", Float, "123.123";
         tokenizer_should_return_float_with_underscores, "123_456.123", Float, "123456.123";
-        tokenizer_should_return_string,                 "\"Hello There :D\"", String, "Hello There :D"
+        tokenizer_should_return_string,                 "\"Hello There :D\"", String, "Hello There :D";
+        tokenizer_shuold_return_ident_regular,          "foo", Ident, "foo";
+        tokenizer_shuold_return_ident_front_underscore, "_foo", Ident, "_foo";
+        tokenizer_shuold_return_ident_on_underscore_and_uppercase, "foo_BAR", Ident, "_foo_BAR";
+        tokenizer_shuold_return_ident_contains_digits,  "foo123", Ident, "foo123"
     }
 
     err_next_token! {

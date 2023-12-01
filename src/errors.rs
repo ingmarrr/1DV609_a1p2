@@ -2,6 +2,9 @@
 pub enum TokenizerError {
     #[error("Floating point number cannot contain multiple dots")]
     MultipleDots,
+
+    #[error("Unterminated String.")]
+    UnterminatedString,
 }
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
