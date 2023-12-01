@@ -308,41 +308,38 @@ pub mod tests {
         );
     }
 
-    #[test]
-    fn tokenizer_should_return_int_on_next() {
-        let mut tokenizer = Tokenizer::new("123_456");
-        assert_eq!(
-            tokenizer.next_token(),
-            Token {
-                kind: TokenKind::Int,
-                lexeme: "123456".into()
+    macro_rules! test_next_token {
+        ($name:ident, $src:expr, $kind:ident, $expected:expr) => {
+            #[test]
+            fn $name() {
+                let mut tokenizer = Tokenizer::new($src);
+                assert_eq! {
+                    tokenizer.next_token(),
+                    Token {
+                        kind: TokenKind::$kind,
+                        lexeme: $expected.into()
+                    }
+                }
+                assert_eq! {
+                    tokenizer.next_token(),
+                    Token {
+                        kind: TokenKind::Eof,
+                        lexeme: "\0".into(),
+                    }
+                }
             }
-        );
-        assert_eq!(
-            tokenizer.next_token(),
-            Token {
-                kind: TokenKind::Eof,
-                lexeme: "\0".into()
-            }
-        );
+        };
+        ($($name:ident, $src:expr, $kind:ident, $expected:expr);*) => {
+            $(
+                test_next_token!($name, $src, $kind, $expected);
+            )*
+        }
     }
 
-    #[test]
-    fn tokenizer_should_return_float_on_next() {
-        let mut tokenizer = Tokenizer::new("123.456");
-        assert_eq!(
-            tokenizer.next_token(),
-            Token {
-                kind: TokenKind::Float,
-                lexeme: "123.456".into()
-            }
-        );
-        assert_eq!(
-            tokenizer.next_token(),
-            Token {
-                kind: TokenKind::Eof,
-                lexeme: "\0".into()
-            }
-        );
+    test_next_token! {
+        tokenizer_should_return_int_on_underscores,     "123_456", Int,   "123456";
+        tokenizer_should_return_int_without_underscores,"1234",    Int,   "1234";
+        tokenizer_should_return_float,                  "123.123", Float, "123.123";
+        tokenizer_should_return_float_with_underscores, "123_456.123", Float, "123456.123"
     }
 }
