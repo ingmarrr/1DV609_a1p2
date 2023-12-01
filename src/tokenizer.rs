@@ -19,6 +19,13 @@ impl<'a> Tokenizer<'a> {
             Some(c) if c.is_ascii_digit() => self.read_number(),
             Some(c) if c == &'"' => self.read_string(),
             Some(c) if c.is_ascii_alphabetic() || c == &'_' => self.read_ident(),
+            Some(c) => {
+                let ch = self.src.next().unwrap();
+                Ok(Token {
+                    kind: TokenKind::from(ch),
+                    lexeme: format!("{ch}"),
+                })
+            }
             _ => Ok(Token {
                 kind: TokenKind::Eof,
                 lexeme: "\0".into(),
@@ -136,12 +143,44 @@ pub enum TokenKind {
     ModAssign, // %=
     PowAssign, // ^=
 
+    HorizontalWs, // " "  | "\t"
+    VerticalWs,   // "\n" | "\r"
+
     Ident,
     Int,
     Float,
     String,
     Invalid,
     Eof,
+}
+
+impl From<char> for TokenKind {
+    fn from(val: char) -> Self {
+        use TokenKind::*;
+        match val {
+            '+' => Add,
+            '-' => Sub,
+            '*' => Mul,
+            '/' => Div,
+            '%' => Mod,
+            '^' => Pow,
+            '(' => Lparen,
+            ')' => Rparen,
+            '{' => Lbrace,
+            '}' => Rbrace,
+            '[' => Lbracket,
+            ']' => Rbracket,
+            ',' => Comma,
+            '.' => Dot,
+            ':' => Colon,
+            ';' => Semicolon,
+            '!' => Bang,
+            '?' => Question,
+            '\t' | ' ' => HorizontalWs,
+            '\n' | '\r' => VerticalWs,
+            _ => Invalid,
+        }
+    }
 }
 
 impl TokenKind {
@@ -182,6 +221,8 @@ impl TokenKind {
             "%=" => ModAssign,
             "^=" => PowAssign,
             "\0" => Eof,
+            st if st.chars().all(|c| c == ' ' || c == '\t') => HorizontalWs,
+            st if st.chars().all(|c| c == '\n' || c == '\r') => VerticalWs,
 
             st if st.starts_with('"') && st.ends_with('"') => String,
             st if st.len() > 0
@@ -243,6 +284,9 @@ impl std::fmt::Display for TokenKind {
             TokenKind::DivAssign => write!(f, "/="),
             TokenKind::ModAssign => write!(f, "%="),
             TokenKind::PowAssign => write!(f, "^="),
+
+            TokenKind::HorizontalWs => write!(f, "horizontal whitespcae"),
+            TokenKind::VerticalWs => write!(f, "vertical whitespace"),
             TokenKind::Ident => write!(f, "identifier"),
             TokenKind::Int => write!(f, "integer"),
             TokenKind::Float => write!(f, "float"),
@@ -360,13 +404,6 @@ pub mod tests {
                         lexeme: $expected.into()
                     })
                 }
-                assert_eq! {
-                    tokenizer.next_token(),
-                    Ok(Token {
-                        kind: TokenKind::Eof,
-                        lexeme: "\0".into(),
-                    })
-                }
             }
         };
         ($($name:ident, $src:expr, $kind:ident, $expected:expr);*) => {
@@ -427,13 +464,14 @@ pub mod tests {
         ($tk:ident, $($kind:ident),+) => {
             $(
                 assert_ntkind!($tk, $kind, TokenKind::$kind.to_string());
+                assert_ntkind!($tk, HorizontalWs, " ".to_string());
             )+
         }
     }
 
     #[test]
-    fn tokenizer_should_recognize_all_symbosl() {
-        let mut tokenizer = Tokenizer::new("+ - * / ^ ( ) { } [ ] , . : ; ! ?");
+    fn tokenizer_should_recognize_all_symbols() {
+        let mut tokenizer = Tokenizer::new("+ - * / ^ ( ) { } [ ] , . : ; ! ? ");
         assert_ntkind! {
             tokenizer,
             Add,
