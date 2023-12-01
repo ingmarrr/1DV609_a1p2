@@ -38,9 +38,25 @@ impl<'a> Tokenizer<'a> {
             break;
         }
         Ok(Token {
-            kind: TokenKind::Ident,
+            kind: Self::get_kw(&lexeme).unwrap_or(TokenKind::Ident),
             lexeme,
         })
+    }
+
+    /// Returns the keyword if the string is a keyword, otherwise returns None.
+    /// Should probably be a lookup table. But since its just an assignment and only a
+    /// handful of keywords this will do fine.
+    fn get_kw(s: &str) -> Option<TokenKind> {
+        use TokenKind::*;
+        match s {
+            "let" => Some(Let),
+            "func" => Some(Func),
+            "if" => Some(If),
+            "else" => Some(Else),
+            "for" => Some(For),
+            "return" => Some(Return),
+            _ => None,
+        }
     }
 
     fn read_string(&mut self) -> Result<Token, TokenizerError> {
@@ -165,6 +181,14 @@ pub enum TokenKind {
 
     HorizontalWs, // " "  | "\t"
     VerticalWs,   // "\n" | "\r"
+
+    // Keywords
+    Let,
+    Func,
+    If,
+    Else,
+    For,
+    Return,
 
     Ident,
     Int,
@@ -334,6 +358,14 @@ impl std::fmt::Display for TokenKind {
 
             TokenKind::HorizontalWs => write!(f, "horizontal whitespcae"),
             TokenKind::VerticalWs => write!(f, "vertical whitespace"),
+
+            TokenKind::Let => write!(f, "let"),
+            TokenKind::Func => write!(f, "func"),
+            TokenKind::If => write!(f, "if"),
+            TokenKind::Else => write!(f, "else"),
+            TokenKind::For => write!(f, "for"),
+            TokenKind::Return => write!(f, "return"),
+
             TokenKind::Ident => write!(f, "identifier"),
             TokenKind::Int => write!(f, "integer"),
             TokenKind::Float => write!(f, "float"),
@@ -560,15 +592,15 @@ pub mod tests {
 
     #[test]
     fn tokenizer_should_return_keywords() {
-        let mut tokenizer = Tokenizer::new("let func if else for return");
+        let mut tokenizer = Tokenizer::new("let func if else for return ");
         assert_ntkind! {
             tokenizer,
-            Ident,
-            Ident,
-            Ident,
-            Ident,
-            Ident,
-            Ident
+            Let,
+            Func,
+            If,
+            Else,
+            For,
+            Return
         }
     }
 }
