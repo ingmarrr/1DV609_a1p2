@@ -7,17 +7,6 @@ pub struct Tokenizer<'a> {
     src: Peekable<Chars<'a>>,
 }
 
-macro_rules! if_next {
-    ($next:ident, $ch:expr, $kind:ident) => {
-        if $next == $ch {
-            return Ok(Token {
-                kind: TokenKind::$kind,
-                lexeme: TokenKind::$kind.to_string(),
-            });
-        }
-    };
-}
-
 impl<'a> Tokenizer<'a> {
     pub fn new(input: &'a str) -> Self {
         Tokenizer {
@@ -30,7 +19,7 @@ impl<'a> Tokenizer<'a> {
             Some(c) if c.is_ascii_digit() => self.read_number(),
             Some(c) if c == &'"' => self.read_string(),
             Some(c) if c.is_ascii_alphabetic() || c == &'_' => self.read_ident(),
-            Some(c) => self.read_char(),
+            Some(_) => self.read_char(),
             _ => Ok(Token {
                 kind: TokenKind::Eof,
                 lexeme: "\0".into(),
@@ -240,8 +229,8 @@ impl From<char> for TokenKind {
     }
 }
 
-impl TokenKind {
-    pub fn from_str(s: &str) -> Self {
+impl From<&str> for TokenKind {
+    fn from(s: &str) -> Self {
         use TokenKind::*;
         match s {
             "+" => Add,
@@ -369,17 +358,17 @@ pub mod tests {
         (var, $( $variant:ident ($from:expr) => $string:expr ),*) => {
             $(
                 assert_eq!($variant.to_string(), $string);
-                assert_eq!(TokenKind::from_str($from), $variant);
+                assert_eq!(TokenKind::from($from), $variant);
             )*
         };
         ($variant:ident => $string:expr) => {
             assert_eq!(TokenKind::$variant.to_string(), $string);
-            assert_eq!(TokenKind::from_str($string).unwrap(), TokenKind::$variant);
+            assert_eq!(TokenKind::from($string).unwrap(), TokenKind::$variant);
         };
         ($( $variant:ident => $string:expr ),*) => {
             $(
                 assert_eq!($variant.to_string(), $string);
-                assert_eq!(TokenKind::from_str($string), $variant);
+                assert_eq!(TokenKind::from($string), $variant);
             )*
         };
     }
@@ -566,6 +555,20 @@ pub mod tests {
             DivAssign,
             ModAssign,
             PowAssign
+        }
+    }
+
+    #[test]
+    fn tokenizer_should_return_keywords() {
+        let mut tokenizer = Tokenizer::new("let func if else for return");
+        assert_ntkind! {
+            tokenizer,
+            Ident,
+            Ident,
+            Ident,
+            Ident,
+            Ident,
+            Ident
         }
     }
 }
