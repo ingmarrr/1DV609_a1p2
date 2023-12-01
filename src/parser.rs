@@ -1,9 +1,9 @@
-use crate::{errors::ParseError, tokenizer::Tokenizer};
+use crate::{errors::ParseError, tokenizer::{Tokenizer, TokenKind}};
 
 #[cfg_attr(test, derive(PartialEq, Eq))]
 #[derive(Debug)]
 pub struct Prog {
-    body: Vec<Expr>,
+    body: Vec<Statement>,
 }
 
 pub struct Parser<'a> {
@@ -17,12 +17,33 @@ impl<'a> Parser<'a> {
         }
     }
 
+    #[rustfmt::skip]
     pub fn parse(&mut self) -> Result<Prog, ParseError> {
+        let mut body = Vec::new();
+
+        while let Ok(token) = self.tkizer.next_token() {
+            match token.kind {
+                TokenKind::Int => body.push(Statement::Expr(Expr::Int(token.lexeme.parse().unwrap()))),
+                _ => break,
+            }
+        }
+        
         Ok(Prog {
-            body: vec![Expr::Int(1)],
+            body,
         })
     }
 }
+
+#[cfg_attr(test, derive(PartialEq, Eq))]
+#[derive(Debug)]
+pub enum Statement {
+    Decl(Decl),
+    Expr(Expr),
+}
+
+#[cfg_attr(test, derive(PartialEq, Eq))]
+#[derive(Debug)]
+pub enum Decl {}
 
 #[cfg_attr(test, derive(PartialEq, Eq))]
 #[derive(Debug)]
@@ -49,7 +70,7 @@ mod tests {
         assert_eq!(
             result,
             Ok(Prog {
-                body: vec![Expr::Int(1)]
+                body: vec![Statement::Expr(Expr::Int(1))]
             })
         );
     }

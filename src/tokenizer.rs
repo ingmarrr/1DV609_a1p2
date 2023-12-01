@@ -135,8 +135,8 @@ impl<'a> Tokenizer<'a> {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Token {
-    kind: TokenKind,
-    lexeme: String,
+    pub kind: TokenKind,
+    pub lexeme: String,
 }
 
 #[derive(Debug, PartialEq, Eq)]

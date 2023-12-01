@@ -1,5 +1,8 @@
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
-pub enum ParseError {}
+pub enum ParseError {
+    #[error("Unexpected token: {0:?}")]
+    UnexpectedToken(crate::tokenizer::Token),
+}
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum TokenizerError {
