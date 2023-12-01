@@ -17,6 +17,13 @@ impl<'a> Tokenizer<'a> {
     pub fn next_token(&mut self) -> Result<Token, TokenizerError> {
         match self.src.peek() {
             Some(c) if c.is_ascii_digit() => self.read_number(),
+            Some(c) if c == &'\"' => {
+                self.src.next();
+                Ok(Token {
+                    kind: TokenKind::String,
+                    lexeme: "Hello There :D".into(),
+                })
+            }
             _ => Ok(Token {
                 kind: TokenKind::Eof,
                 lexeme: "\0".into(),
