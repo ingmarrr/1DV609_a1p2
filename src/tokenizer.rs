@@ -328,7 +328,7 @@ pub mod tests {
         );
     }
 
-    macro_rules! test_next_token {
+    macro_rules! ok_next_token {
         ($name:ident, $src:expr, $kind:ident, $expected:expr) => {
             #[test]
             fn $name() {
@@ -351,12 +351,30 @@ pub mod tests {
         };
         ($($name:ident, $src:expr, $kind:ident, $expected:expr);*) => {
             $(
-                test_next_token!($name, $src, $kind, $expected);
+                ok_next_token!($name, $src, $kind, $expected);
             )*
         }
     }
 
-    test_next_token! {
+    macro_rules! err_next_token {
+        ($name:ident, $src:expr, $kind:ident) => {
+            #[test]
+            fn $name() {
+                let mut tokenizer = Tokenizer::new($src);
+                assert_eq! {
+                    tokenizer.next_token(),
+                    Err(TokenizerError::$kind)
+                }
+            }
+        };
+        ($($name:ident, $src:expr, $kind:ident);*) => {
+            $(
+                err_next_token!($name, $src, $kind);
+            )*
+        }
+    }
+
+    ok_next_token! {
         tokenizer_should_return_int_on_underscores,     "123_456", Int,   "123456";
         tokenizer_should_return_int_without_underscores,"1234",    Int,   "1234";
         tokenizer_should_return_float_on_underscores,   "123.123", Float, "123.123";
@@ -364,12 +382,8 @@ pub mod tests {
         tokenizer_should_return_string,                 "\"Hello There :D\"", String, "Hello There :D"
     }
 
-    #[test]
-    fn tokenizer_should_return_error_on_mulitple_dots() {
-        let mut tokenizer = Tokenizer::new("123.12.3.3.45.");
-        assert_eq! {
-            tokenizer.next_token(),
-            Err(TokenizerError::MultipleDots),
-        }
+    err_next_token! {
+        tokenizer_should_return_error_on_multiple_dots, "123.12.3.3.45.", MultipleDots;
+        tokenizer_should_return_error_unterminated_string, "\"Hello There :D", UnterminatedString
     }
 }
