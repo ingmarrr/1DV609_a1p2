@@ -343,8 +343,9 @@ pub mod tests {
     test_next_token! {
         tokenizer_should_return_int_on_underscores,     "123_456", Int,   "123456";
         tokenizer_should_return_int_without_underscores,"1234",    Int,   "1234";
-        tokenizer_should_return_float,                  "123.123", Float, "123.123";
-        tokenizer_should_return_float_with_underscores, "123_456.123", Float, "123456.123"
+        tokenizer_should_return_float_on_underscores,   "123.123", Float, "123.123";
+        tokenizer_should_return_float_with_underscores, "123_456.123", Float, "123456.123";
+        tokenizer_should_return_string,                 "\"Hello There :D\"", String, "Hello There :D"
     }
 
     #[test]
