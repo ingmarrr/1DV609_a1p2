@@ -18,11 +18,28 @@ impl<'a> Tokenizer<'a> {
         match self.src.peek() {
             Some(c) if c.is_ascii_digit() => self.read_number(),
             Some(c) if c == &'"' => self.read_string(),
+            Some(c) if c.is_ascii_alphabetic() || c == &'_' => self.read_ident(),
             _ => Ok(Token {
                 kind: TokenKind::Eof,
                 lexeme: "\0".into(),
             }),
         }
+    }
+
+    fn read_ident(&mut self) -> Result<Token, TokenizerError> {
+        let mut lexeme = String::new();
+        while let Some(c) = self.src.peek() {
+            if c.is_ascii_alphanumeric() || c == &'_' {
+                let ch = self.src.next().unwrap();
+                lexeme.push(ch);
+                continue;
+            }
+            break;
+        }
+        Ok(Token {
+            kind: TokenKind::Ident,
+            lexeme,
+        })
     }
 
     fn read_string(&mut self) -> Result<Token, TokenizerError> {
@@ -382,7 +399,7 @@ pub mod tests {
         tokenizer_should_return_string,                 "\"Hello There :D\"", String, "Hello There :D";
         tokenizer_shuold_return_ident_regular,          "foo", Ident, "foo";
         tokenizer_shuold_return_ident_front_underscore, "_foo", Ident, "_foo";
-        tokenizer_shuold_return_ident_on_underscore_and_uppercase, "foo_BAR", Ident, "_foo_BAR";
+        tokenizer_shuold_return_ident_on_underscore_and_uppercase, "foo_BAR", Ident, "foo_BAR";
         tokenizer_shuold_return_ident_contains_digits,  "foo123", Ident, "foo123"
     }
 
