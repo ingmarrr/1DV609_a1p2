@@ -32,6 +32,15 @@ impl<'a> Parser<'a> {
             body,
         })
     }
+
+    pub fn assert(&mut self, kind: TokenKind) -> Result<(), ParseError> {
+        let token = self.tkizer.next_token()?;
+        if token.kind != kind {
+            return Err(ParseError::UnexpectedToken(token));
+        }
+        Ok(())
+    }
+
 }
 
 #[cfg_attr(test, derive(PartialEq, Eq))]
