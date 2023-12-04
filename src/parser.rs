@@ -374,6 +374,22 @@ mod tests {
             ExprVal::String("Hello World :D".into())
         }
     }
-
+    
+    #[test]
+    fn parse_statement_should_return_let() {
+        let mut parser = Parser::new("let x = 1").unwrap();
+        let node = parser.parse_stmt();
+        assert_eq! {
+            node,
+            Stmt {
+                name: x,
+                ty: Ty::Int,
+                expr: Expr {
+                    val: ExprVal::Int(1),
+                    prec: Precedence::Lowest,
+                }
+            }
+        }
+    }
 }
 
