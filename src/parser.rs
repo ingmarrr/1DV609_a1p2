@@ -58,6 +58,11 @@ impl<'a> Parser {
     }
 
     pub fn consume_if(&mut self, kind: TokenKind) -> Option<Token> {
+        if let Some(token) = self.tokens.peek() {
+            if token.kind == kind {
+                return self.tokens.next();
+            }
+        }
         None
     }
 
@@ -132,5 +137,20 @@ mod tests {
         let result = parser.consume_if(TokenKind::String);
         assert!(result.is_none());
     }
+
+    #[test]
+    fn parse_consume_if_should_return_token_on_correct_token() {
+        let mut parser = Parser::new("1").unwrap();
+        let result = parser.consume_if(TokenKind::Int);
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn parse_expr_should_return_int_node() {
+        let mut parser = Parser::new("1").unwrap();
+        let node = parser.parse_expr().unwrap();
+        assert_eq!(node, Expr::Int(1));
+    }
+
 }
 
