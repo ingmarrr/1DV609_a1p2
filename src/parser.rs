@@ -57,6 +57,7 @@ impl<'a> Parser {
         Ok(self.tokens.next().unwrap().clone())
     }
 
+
     pub fn assert(&mut self, kind: TokenKind) -> Result<Token, ParseError> {
         let token = self.consume()?;
         if token.kind != kind {
@@ -113,6 +114,20 @@ mod tests {
         let mut parser = Parser::new("1").unwrap();
         let result = parser.assert(TokenKind::Int);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn parse_assert_should_return_error_on_unexpected_token() {
+        let mut parser = Parser::new("1").unwrap();
+        let result = parser.assert(TokenKind::String);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_consume_if_should_return_none_on_wrong_token() {
+        let mut parser = Parser::new("1").unwrap();
+        let result = parser.consume_if(TokenKind::String);
+        assert!(result.is_none());
     }
 }
 
