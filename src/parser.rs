@@ -39,9 +39,20 @@ impl<'a> Parser {
 
     pub fn parse_expr(&mut self) -> Result<Expr, ParseError> {
         let token = self.consume()?;
-        match token.kind {
-            TokenKind::Int => Ok(Expr::Int(token.lexeme.parse().unwrap())),
-            _ => Err(ParseError::UnexpectedToken(token)),
+        let lhs = match token.kind {
+            TokenKind::Int => Expr::Int(token.lexeme.parse().unwrap()),
+            _ => return Err(ParseError::UnexpectedToken(token)),
+        };
+
+        if let Some(token) = self.consume_if(TokenKind::Add) {
+            let rhs = self.parse_expr()?;
+            return Ok(Expr::BinOp{
+                lhs: Box::new(lhs),
+                op: BinOp::Add,
+                rhs: Box::new(rhs),
+            });
+        } else {
+            return Ok(lhs);
         }
     }
 
@@ -99,6 +110,19 @@ pub enum Decl {}
 #[derive(Debug)]
 pub enum Expr {
     Int(i64),
+    BinOp {
+        lhs: Box<Expr>,
+        op: BinOp,
+        rhs: Box<Expr>,
+    },
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum BinOp {
+    Add,
+    Sub,
+    Mul,
+    Div,
 }
 
 #[cfg(test)]
@@ -166,11 +190,11 @@ mod tests {
         let node = parser.parse_expr().unwrap();
         assert_eq!(
             node,
-            Expr::BinOp(
-                Box::new(Expr::Int(1)),
-                BinOp::Add,
-                Box::new(Expr::Int(2))
-            )
+            Expr::BinOp {
+                lhs: Box::new(Expr::Int(1)),
+                op: BinOp::Add,
+                rhs: Box::new(Expr::Int(2))
+            }
         );
     }
 }
