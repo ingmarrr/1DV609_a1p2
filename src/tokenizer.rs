@@ -27,6 +27,14 @@ impl<'a> Tokenizer<'a> {
     }
 
     pub fn next_token(&mut self) -> Result<Token, TokenizerError> {
+        while let Some(c) = self.src.peek() {
+            match c {
+                ' ' | '\t' | '\n' | '\r' => {
+                    self.src.next();
+                }
+                _ => break,
+            }
+        }
         match self.src.peek() {
             Some(c) if c.is_ascii_digit() => self.read_number(),
             Some(c) if c == &'"' => self.read_string(),
@@ -49,6 +57,7 @@ impl<'a> Tokenizer<'a> {
             }
             break;
         }
+        println!("identifier: {}", lexeme);
         Ok(Token {
             kind: Self::get_kw(&lexeme).unwrap_or(TokenKind::Ident),
             lexeme,
@@ -555,7 +564,6 @@ pub mod tests {
         ($tk:ident, $($kind:ident),+) => {
             $(
                 assert_ntkind!($tk, $kind, TokenKind::$kind.to_string());
-                assert_ntkind!($tk, HorizontalWs, " ".to_string());
             )+
         }
     }
@@ -620,13 +628,11 @@ pub mod tests {
     fn tokenizer_should_return_token_buffer() {
         let mut tokenizer = Tokenizer::new("let foo := 123.45");
         let buffer = tokenizer.scan().unwrap();
-        assert_eq!(buffer.len(), 7);
+        println!("{:#?}", buffer);
+        assert_eq!(buffer.len(), 4);
         assert_eq!(buffer[0].kind, TokenKind::Let);
-        assert_eq!(buffer[1].kind, TokenKind::HorizontalWs);
-        assert_eq!(buffer[2].kind, TokenKind::Ident);
-        assert_eq!(buffer[3].kind, TokenKind::HorizontalWs);
-        assert_eq!(buffer[4].kind, TokenKind::Assign);
-        assert_eq!(buffer[5].kind, TokenKind::HorizontalWs);
-        assert_eq!(buffer[6].kind, TokenKind::Float);
+        assert_eq!(buffer[1].kind, TokenKind::Ident);
+        assert_eq!(buffer[2].kind, TokenKind::Assign);
+        assert_eq!(buffer[3].kind, TokenKind::Float);
     }
 }
