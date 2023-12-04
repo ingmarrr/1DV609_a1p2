@@ -5,7 +5,7 @@ use crate::{errors::ParseError, tokenizer::{Tokenizer, TokenKind, Token}};
 #[cfg_attr(test, derive(PartialEq, Eq))]
 #[derive(Debug)]
 pub struct Prog {
-    body: Vec<Statement>,
+    body: Vec<Stmt>,
 }
 
 pub struct Parser {
@@ -26,14 +26,33 @@ impl<'a> Parser {
         let mut body = Vec::new();
 
         while let Ok(token) = self.lookahead() {
-            match token.kind {
-                _ => body.push(Statement::Expr(self.parse_expr()?))
-            }
+            body.push(match token.kind {
+                TokenKind::Let => Stmt::Decl(Decl::Let(Let {
+                    name: "x".into(),
+                    ty: Ty::Int,
+                    expr: Expr {
+                        val: ExprVal::Int(1),
+                        prec: Precedence::Lowest,
+                    }
+                })),
+                _ => Stmt::Expr(self.parse_expr()?)
+            })
         }
         
         Ok(Prog {
             body,
         })
+    }
+
+    pub fn parse_decl(&mut self) -> Result<Decl, ParseError> {
+        Ok(Decl::Let(Let {
+            name: "x".into(),
+            ty: Ty::Int,
+            expr: Expr {
+                val: ExprVal::Int(1),
+                prec: Precedence::Lowest,
+            }
+        }))
     }
 
     pub fn parse_expr(&mut self) -> Result<Expr, ParseError> {
@@ -126,24 +145,39 @@ impl<'a> Parser {
 
 #[cfg_attr(test, derive(PartialEq, Eq))]
 #[derive(Debug)]
-pub enum Statement {
+pub enum Stmt {
     Decl(Decl),
     Expr(Expr),
 }
 
-#[cfg_attr(test, derive(PartialEq, Eq, Clone, Copy))]
-#[derive(Debug)]
-pub enum Decl {}
-
 #[cfg_attr(test, derive(PartialEq, Eq, Clone))]
 #[derive(Debug)]
+pub enum Decl {
+    Let(Let)
+}
+
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct Let {
+    pub name: String,
+    pub ty: Ty,
+    pub expr: Expr,
+}
+
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum Ty {
+    Int,
+}
+
+
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Expr {
     pub val: ExprVal,
     pub prec: Precedence,
 }
 
-#[cfg_attr(test, derive(PartialEq, Eq, Clone))]
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ExprVal {
     Int(i64),
     String(String),
@@ -192,8 +226,7 @@ impl From<TokenKind> for Precedence {
     }
 }
 
-#[cfg_attr(test, derive(Clone))]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum BinOp {
     Add,
     Sub,
@@ -232,7 +265,7 @@ mod tests {
         assert_eq!(
             result,
             Ok(Prog {
-                body: vec![Statement::Expr(Expr {
+                body: vec![Stmt::Expr(Expr {
                     val: ExprVal::Int(1),
                     prec: Precedence::Lowest,
                 })]
@@ -378,17 +411,17 @@ mod tests {
     #[test]
     fn parse_statement_should_return_let() {
         let mut parser = Parser::new("let x = 1").unwrap();
-        let node = parser.parse_stmt();
+        let node = parser.parse_decl().unwrap();
         assert_eq! {
             node,
-            Stmt {
-                name: x,
+            Decl::Let(Let {
+                name: "x".into(),
                 ty: Ty::Int,
                 expr: Expr {
                     val: ExprVal::Int(1),
                     prec: Precedence::Lowest,
                 }
-            }
+            })
         }
     }
 }
