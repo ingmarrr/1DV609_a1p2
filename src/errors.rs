@@ -1,3 +1,5 @@
+use std::num::ParseIntError;
+
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum ParseError {
     #[error("Unexpected token: {0:?}")]
@@ -5,6 +7,9 @@ pub enum ParseError {
 
     #[error(transparent)]
     TokenizerError(#[from] TokenizerError),
+
+    #[error(transparent)]
+    IntParseError(#[from] ParseIntError),
 }
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]

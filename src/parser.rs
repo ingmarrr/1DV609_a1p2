@@ -1,4 +1,4 @@
-use std::{iter::Peekable};
+use std::iter::Peekable;
 
 use crate::{errors::ParseError, tokenizer::{Tokenizer, TokenKind, Token}};
 
@@ -27,7 +27,10 @@ impl<'a> Parser {
 
         while let Ok(token) = self.consume() {
             match token.kind {
-                TokenKind::Int => body.push(Statement::Expr(Expr::Int(token.lexeme.parse().unwrap()))),
+                TokenKind::Int => body.push(Statement::Expr(Expr {
+                    val: ExprVal::Int(token.lexeme.parse::<i64>()?),
+                    prec: Precedence::Lowest,
+                })),
                 _ => break,
             }
         }
@@ -40,7 +43,16 @@ impl<'a> Parser {
     pub fn parse_expr(&mut self) -> Result<Expr, ParseError> {
         let token = self.consume()?;
         let lhs = match token.kind {
-            TokenKind::Int => Expr::Int(token.lexeme.parse().unwrap()),
+            TokenKind::Int => Expr {
+                val: ExprVal::Int(token.lexeme.parse()?),
+                prec: Precedence::Lowest,
+            },
+            TokenKind::Lparen => {
+                let mut expr = self.parse_expr()?;
+                self.assert(TokenKind::Rparen)?;
+                expr.prec = Precedence::ParenWrapped;
+                expr
+            }
             _ => return Err(ParseError::UnexpectedToken(token)),
         };
 
@@ -51,10 +63,13 @@ impl<'a> Parser {
             TokenKind::Div
         ]) {
             let rhs = self.parse_expr()?;
-            Ok(Expr::BinOp{
-                lhs: Box::new(lhs),
-                op: BinOp::from(token.kind),
-                rhs: Box::new(rhs),
+            Ok(Expr {
+                val: ExprVal::BinOp {
+                    lhs: Box::new(lhs),
+                    op: BinOp::from(token.kind),
+                    rhs: Box::new(rhs),
+                },
+                prec: Precedence::from(token.kind)
             })
         }  else {
             Ok(lhs)
@@ -116,13 +131,20 @@ pub enum Statement {
     Expr(Expr),
 }
 
-#[cfg_attr(test, derive(PartialEq, Eq))]
+#[cfg_attr(test, derive(PartialEq, Eq, Clone, Copy))]
 #[derive(Debug)]
 pub enum Decl {}
 
 #[cfg_attr(test, derive(PartialEq, Eq, Clone))]
 #[derive(Debug)]
-pub enum Expr {
+pub struct Expr {
+    pub val: ExprVal,
+    pub prec: Precedence,
+}
+
+#[cfg_attr(test, derive(PartialEq, Eq, Clone))]
+#[derive(Debug)]
+pub enum ExprVal {
     Int(i64),
     BinOp {
         lhs: Box<Expr>,
@@ -131,11 +153,11 @@ pub enum Expr {
     },
 }
 
-impl Expr {
+impl ExprVal {
     pub fn precedence(&self) -> Precedence {
         match self {
-            Expr::Int(_) => Precedence::Lowest,
-            Expr::BinOp { op, .. } => match op {
+            ExprVal::Int(_) => Precedence::Lowest,
+            ExprVal::BinOp { op, .. } => match op {
                 BinOp::Add | BinOp::Sub => Precedence::Additive,
                 BinOp::Mul | BinOp::Div => Precedence::Multiplicative,
             },
@@ -151,6 +173,21 @@ pub enum Precedence {
     Prefix,
     Postfix,
     Call,
+    ParenWrapped,
+}
+
+impl From<TokenKind> for Precedence {
+    fn from(value: TokenKind) -> Self {
+        match value {
+            TokenKind::Add |
+            TokenKind::Sub => Precedence::Additive,
+            TokenKind::Mod |
+            TokenKind::Pow |
+            TokenKind::Mul |
+            TokenKind::Div => Precedence::Multiplicative,
+            _ => todo!()
+        }
+    }
 }
 
 #[cfg_attr(test, derive(Clone))]
@@ -193,7 +230,10 @@ mod tests {
         assert_eq!(
             result,
             Ok(Prog {
-                body: vec![Statement::Expr(Expr::Int(1))]
+                body: vec![Statement::Expr(Expr {
+                    val: ExprVal::Int(1),
+                    prec: Precedence::Lowest,
+                })]
             })
         );
     }
@@ -229,20 +269,26 @@ mod tests {
     #[test]
     fn parse_expr_should_return_int_node() {
         let mut parser = Parser::new("1").unwrap();
-        let node = parser.parse_expr().unwrap();
-        assert_eq!(node, Expr::Int(1));
+        let node = parser.parse_expr().unwrap().val;
+        assert_eq!(node, ExprVal::Int(1));
     }
 
     #[test]
     fn parse_expr_should_return_binop_node() {
         let mut parser = Parser::new("1 + 2").unwrap();
-        let node = parser.parse_expr().unwrap();
+        let node = parser.parse_expr().unwrap().val;
         assert_eq!(
             node,
-            Expr::BinOp {
-                lhs: Box::new(Expr::Int(1)),
+            ExprVal::BinOp {
+                lhs: Box::new(Expr {
+                    val: ExprVal::Int(1),
+                    prec: Precedence::Lowest,
+                }),
                 op: BinOp::Add,
-                rhs: Box::new(Expr::Int(2))
+                rhs: Box::new(Expr {
+                    val: ExprVal::Int(2),
+                    prec: Precedence::Lowest,
+                }),
             }
         );
     }
@@ -250,17 +296,31 @@ mod tests {
     #[test]
     fn parse_expr_should_return_nested_binop_node() {
         let mut parser = Parser::new("1 + 2 * 3").unwrap();
-        let node = parser.parse_expr().unwrap();
+        let node = parser.parse_expr().unwrap().val;
         assert_eq!(
             node,
-            Expr::BinOp {
-                lhs: Box::new(Expr::Int(1)),
+            ExprVal::BinOp {
+                lhs: Box::new(Expr {
+                    val: ExprVal::Int(1),
+                    prec: Precedence::Lowest,
+                }),
                 op: BinOp::Add,
-                rhs: Box::new(Expr::BinOp {
-                    lhs: Box::new(Expr::Int(2)),
-                    op: BinOp::Mul,
-                    rhs: Box::new(Expr::Int(3))
-                })
+                rhs: Box::new(
+                    Expr {
+                        val: ExprVal::BinOp {
+                            lhs: Box::new(Expr {
+                                val: ExprVal::Int(2),
+                                prec: Precedence::Lowest,
+                            }),
+                            op: BinOp::Mul,
+                            rhs: Box::new(Expr {
+                                val: ExprVal::Int(3),
+                                prec: Precedence::Lowest,
+                            }),
+                        },
+                        prec: Precedence::Multiplicative,
+                    }
+                )
             }
         );
     }
@@ -269,24 +329,24 @@ mod tests {
     fn mul_expr_has_higher_precedence_than_add_expr() {
         let mut parser = Parser::new("1 + 2 * 3").unwrap();
         let node = parser.parse_expr().unwrap();
-        let (lhs, _, rhs) = match node.clone() {
-            Expr::BinOp { lhs, op, rhs } => (*lhs, op, *rhs),
+        let (lhs, _, rhs) = match node.val {
+            ExprVal::BinOp { lhs, op, rhs } => (*lhs, op, *rhs),
             _ => panic!("Invalid node: {:?}", node),
         };
-        assert!(node.precedence() > lhs.precedence());
-        assert!(node.precedence() < rhs.precedence());
+        assert!(node.prec > lhs.prec);
+        assert!(node.prec < rhs.prec);
     }
 
     #[test]
     fn paren_add_expr_has_higher_precedence_than_mul_expr() {
         let mut parser = Parser::new("(1 + 2) * 3").unwrap();
         let node = parser.parse_expr().unwrap();
-        let (lhs, _, rhs) = match node.clone() {
-            Expr::BinOp { lhs, op, rhs } => (*lhs, op, *rhs),
+        let (lhs, _, rhs) = match node.val {
+            ExprVal::BinOp { lhs, op, rhs } => (*lhs, op, *rhs),
             _ => panic!("Invalid node: {:?}", node),
         };
-        assert!(node.precedence() > lhs.precedence());
-        assert!(node.precedence() < rhs.precedence());
+        assert!(node.prec < lhs.prec);
+        assert!(node.prec > rhs.prec);
     }
 }
 
