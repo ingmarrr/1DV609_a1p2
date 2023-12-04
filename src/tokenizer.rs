@@ -603,4 +603,15 @@ pub mod tests {
             Return
         }
     }
+
+    #[test]
+    fn tokenizer_should_return_token_buffer() {
+        let mut tokenizer = Tokenizer::new("let foo = 123.45");
+        let buffer = tokenizer.scan().unwrap();
+        assert_eq!(buffer.len(), 4);
+        assert_eq!(buffer[0].kind, TokenKind::Let);
+        assert_eq!(buffer[1].kind, TokenKind::Ident);
+        assert_eq!(buffer[2].kind, TokenKind::Assign);
+        assert_eq!(buffer[3].kind, TokenKind::Float);
+    }
 }
