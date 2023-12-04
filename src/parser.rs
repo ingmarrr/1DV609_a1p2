@@ -329,8 +329,8 @@ mod tests {
     fn mul_expr_has_higher_precedence_than_add_expr() {
         let mut parser = Parser::new("1 + 2 * 3").unwrap();
         let node = parser.parse_expr().unwrap();
-        let (lhs, _, rhs) = match node.val {
-            ExprVal::BinOp { lhs, op, rhs } => (*lhs, op, *rhs),
+        let (lhs, rhs) = match node.val {
+            ExprVal::BinOp { lhs, rhs, .. } => (*lhs, *rhs),
             _ => panic!("Invalid node: {:?}", node),
         };
         assert!(node.prec > lhs.prec);
@@ -341,12 +341,25 @@ mod tests {
     fn paren_add_expr_has_higher_precedence_than_mul_expr() {
         let mut parser = Parser::new("(1 + 2) * 3").unwrap();
         let node = parser.parse_expr().unwrap();
-        let (lhs, _, rhs) = match node.val {
-            ExprVal::BinOp { lhs, op, rhs } => (*lhs, op, *rhs),
+        let (lhs, rhs) = match node.val {
+            ExprVal::BinOp { lhs, rhs, .. } => (*lhs, *rhs),
             _ => panic!("Invalid node: {:?}", node),
         };
         assert!(node.prec < lhs.prec);
         assert!(node.prec > rhs.prec);
+    }
+
+    #[test]
+    fn two_parenthesized_expressions_have_same_precedence() {
+        let mut parser = Parser::new("(1 + 2) * (3 + 4)").unwrap();
+        let node = parser.parse_expr().unwrap();
+        let (lhs, rhs) = match node.val {
+            ExprVal::BinOp { lhs, rhs, .. } => (*lhs, *rhs),
+            _ => panic!(),
+        };
+        assert!(node.prec < lhs.prec);
+        assert!(node.prec < rhs.prec);
+        assert!(lhs.prec == lhs.prec);
     }
 }
 
