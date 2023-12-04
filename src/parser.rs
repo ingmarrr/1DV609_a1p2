@@ -39,7 +39,10 @@ impl<'a> Parser {
 
     pub fn parse_expr(&mut self) -> Result<Expr, ParseError> {
         let token = self.consume()?;
-        Ok(Expr::Int(token.lexeme.parse().unwrap()))
+        match token.kind {
+            TokenKind::Int => Ok(Expr::Int(token.lexeme.parse().unwrap())),
+            _ => Err(ParseError::UnexpectedToken(token)),
+        }
     }
 
     pub fn lookahead(&mut self) -> Result<&Token, ParseError> {
@@ -156,6 +159,5 @@ mod tests {
         let node = parser.parse_expr().unwrap();
         assert_eq!(node, Expr::Int(1));
     }
-
 }
 
