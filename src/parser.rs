@@ -1,4 +1,6 @@
-use crate::{errors::ParseError, tokenizer::{Tokenizer, TokenKind}};
+use std::iter::Peekable;
+
+use crate::{errors::ParseError, tokenizer::{Tokenizer, TokenKind, Token}};
 
 #[cfg_attr(test, derive(PartialEq, Eq))]
 #[derive(Debug)]
@@ -6,22 +8,24 @@ pub struct Prog {
     body: Vec<Statement>,
 }
 
-pub struct Parser<'a> {
-    tkizer: Tokenizer<'a>,
+pub struct Parser {
+    tokens: Peekable<std::vec::IntoIter<Token>>,
 }
 
-impl<'a> Parser<'a> {
-    pub fn new(src: &'a str) -> Parser<'a> {
-        Parser::<'a> {
-            tkizer: Tokenizer::<'a>::new(src),
-        }
+impl<'a> Parser {
+    pub fn new(src: &'a str) -> Result<Parser, ParseError> {
+        let mut tokenizer = Tokenizer::<'a>::new(src);
+
+        Ok(Parser {
+            tokens: tokenizer.scan()?.into_iter().peekable(),
+        })
     }
 
     #[rustfmt::skip]
     pub fn parse(&mut self) -> Result<Prog, ParseError> {
         let mut body = Vec::new();
 
-        while let Ok(token) = self.tkizer.next_token() {
+        while let Ok(token) = self.consume() {
             match token.kind {
                 TokenKind::Int => body.push(Statement::Expr(Expr::Int(token.lexeme.parse().unwrap()))),
                 _ => break,
@@ -33,12 +37,32 @@ impl<'a> Parser<'a> {
         })
     }
 
-    pub fn assert(&mut self, kind: TokenKind) -> Result<(), ParseError> {
-        let token = self.tkizer.next_token()?;
-        if token.kind != kind {
-            return Err(ParseError::UnexpectedToken(token));
+    pub fn lookahead(&mut self) -> Result<&Token, ParseError> {
+        if self.tokens.peek().is_none() {
+            return Err(ParseError::UnexpectedToken(Token {
+                kind: TokenKind::Eof,
+                lexeme: String::new(),
+            }));
         }
-        Ok(())
+        Ok(self.tokens.peek().unwrap())
+    }
+
+    pub fn consume(&mut self) -> Result<Token, ParseError> {
+        if self.tokens.peek().is_none() {
+            return Err(ParseError::UnexpectedToken(Token {
+                kind: TokenKind::Eof,
+                lexeme: String::new(),
+            }));
+        }
+        Ok(self.tokens.next().unwrap().clone())
+    }
+
+    pub fn assert(&mut self, kind: TokenKind) -> Result<Token, ParseError> {
+        let token = self.consume()?;
+        if token.kind != kind {
+            return Err(ParseError::UnexpectedToken(token.clone()));
+        }
+        Ok(token)
     }
 
 }
@@ -66,14 +90,14 @@ mod tests {
 
     #[test]
     fn parser_should_ok_on_empty() {
-        let mut parser = Parser::new("");
+        let mut parser = Parser::new("").unwrap();
         let result = parser.parse();
         assert!(result.is_ok());
     }
 
     #[test]
     fn parser_should_return_int_node() {
-        let mut parser = Parser::new("1");
+        let mut parser = Parser::new("1").unwrap();
         let result = parser.parse();
         assert!(result.is_ok());
         assert_eq!(
@@ -86,7 +110,7 @@ mod tests {
 
     #[test]
     fn parse_assert_should_return_correct_token() {
-        let mut parser = Parser::new("1");
+        let mut parser = Parser::new("1").unwrap();
         let result = parser.assert(TokenKind::Int);
         assert!(result.is_ok());
     }
