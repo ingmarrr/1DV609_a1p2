@@ -120,7 +120,7 @@ pub enum Statement {
 #[derive(Debug)]
 pub enum Decl {}
 
-#[cfg_attr(test, derive(PartialEq, Eq))]
+#[cfg_attr(test, derive(PartialEq, Eq, Clone))]
 #[derive(Debug)]
 pub enum Expr {
     Int(i64),
@@ -132,7 +132,6 @@ pub enum Expr {
 }
 
 impl Expr {
-
     pub fn precedence(&self) -> Precedence {
         match self {
             Expr::Int(_) => Precedence::Lowest,
@@ -142,9 +141,9 @@ impl Expr {
             },
         }
     }
-
 }
 
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub enum Precedence {
     Lowest = 0,
     Additive,
@@ -154,6 +153,7 @@ pub enum Precedence {
     Call,
 }
 
+#[cfg_attr(test, derive(Clone))]
 #[derive(Debug, PartialEq, Eq)]
 pub enum BinOp {
     Add,
@@ -263,6 +263,18 @@ mod tests {
                 })
             }
         );
+    }
+
+    #[test]
+    fn mul_expr_has_higher_precedence_than_add_expr() {
+        let mut parser = Parser::new("1 + 2 * 3").unwrap();
+        let node = parser.parse_expr().unwrap();
+        let (lhs, _, rhs) = match node.clone() {
+            Expr::BinOp { lhs, op, rhs } => (*lhs, op, *rhs),
+            _ => panic!("Invalid node: {:?}", node),
+        };
+        assert!(node.precedence() > lhs.precedence());
+        assert!(node.precedence() < rhs.precedence());
     }
 }
 
