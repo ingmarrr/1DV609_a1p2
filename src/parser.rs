@@ -276,5 +276,17 @@ mod tests {
         assert!(node.precedence() > lhs.precedence());
         assert!(node.precedence() < rhs.precedence());
     }
+
+    #[test]
+    fn paren_add_expr_has_higher_precedence_than_mul_expr() {
+        let mut parser = Parser::new("(1 + 2) * 3").unwrap();
+        let node = parser.parse_expr().unwrap();
+        let (lhs, _, rhs) = match node.clone() {
+            Expr::BinOp { lhs, op, rhs } => (*lhs, op, *rhs),
+            _ => panic!("Invalid node: {:?}", node),
+        };
+        assert!(node.precedence() > lhs.precedence());
+        assert!(node.precedence() < rhs.precedence());
+    }
 }
 
