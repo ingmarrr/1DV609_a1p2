@@ -159,5 +159,19 @@ mod tests {
         let node = parser.parse_expr().unwrap();
         assert_eq!(node, Expr::Int(1));
     }
+
+    #[test]
+    fn parse_expr_should_return_binop_node() {
+        let mut parser = Parser::new("1 + 2").unwrap();
+        let node = parser.parse_expr().unwrap();
+        assert_eq!(
+            node,
+            Expr::BinOp(
+                Box::new(Expr::Int(1)),
+                BinOp::Add,
+                Box::new(Expr::Int(2))
+            )
+        );
+    }
 }
 
