@@ -31,6 +31,10 @@ impl<'a> Parser {
                     val: ExprVal::Int(token.lexeme.parse::<i64>()?),
                     prec: Precedence::Lowest,
                 })),
+                TokenKind::String => body.push(Statement::Expr(Expr {
+                    val: ExprVal::String(token.lexeme),
+                    prec: Precedence::Lowest,
+                })),
                 _ => break,
             }
         }
@@ -45,6 +49,10 @@ impl<'a> Parser {
         let lhs = match token.kind {
             TokenKind::Int => Expr {
                 val: ExprVal::Int(token.lexeme.parse()?),
+                prec: Precedence::Lowest,
+            },
+            TokenKind::String => Expr {
+                val: ExprVal::String(token.lexeme),
                 prec: Precedence::Lowest,
             },
             TokenKind::Lparen => {
@@ -146,6 +154,7 @@ pub struct Expr {
 #[derive(Debug)]
 pub enum ExprVal {
     Int(i64),
+    String(String),
     BinOp {
         lhs: Box<Expr>,
         op: BinOp,
@@ -156,6 +165,7 @@ pub enum ExprVal {
 impl ExprVal {
     pub fn precedence(&self) -> Precedence {
         match self {
+            ExprVal::String(_) |
             ExprVal::Int(_) => Precedence::Lowest,
             ExprVal::BinOp { op, .. } => match op {
                 BinOp::Add | BinOp::Sub => Precedence::Additive,
@@ -365,13 +375,10 @@ mod tests {
     #[test]
     fn parse_expr_should_return_string_node() {
         let mut parser = Parser::new("\"Hello World :D\"").unwrap();
-        let node = parser.parse_expr().unwrap();
-        let (str) = match node.val {
-            ExprVal::String(s) => s,
-            _ => panic!(),
-        };
+        let node = parser.parse_expr();
+        println!("{:#?}", node);
         assert_eq! {
-            node,
+            node.unwrap().val,
             ExprVal::String("Hello World :D".into())
         }
     }
