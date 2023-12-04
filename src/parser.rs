@@ -1,4 +1,4 @@
-use std::iter::Peekable;
+use std::{iter::Peekable};
 
 use crate::{errors::ParseError, tokenizer::{Tokenizer, TokenKind, Token}};
 
@@ -35,6 +35,11 @@ impl<'a> Parser {
         Ok(Prog {
             body,
         })
+    }
+
+    pub fn parse_expr(&mut self) -> Result<Expr, ParseError> {
+        let token = self.consume()?;
+        Ok(Expr::Int(token.lexeme.parse().unwrap()))
     }
 
     pub fn lookahead(&mut self) -> Result<&Token, ParseError> {
