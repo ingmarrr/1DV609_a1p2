@@ -25,17 +25,9 @@ impl<'a> Parser {
     pub fn parse(&mut self) -> Result<Prog, ParseError> {
         let mut body = Vec::new();
 
-        while let Ok(token) = self.consume() {
+        while let Ok(token) = self.lookahead() {
             match token.kind {
-                TokenKind::Int => body.push(Statement::Expr(Expr {
-                    val: ExprVal::Int(token.lexeme.parse::<i64>()?),
-                    prec: Precedence::Lowest,
-                })),
-                TokenKind::String => body.push(Statement::Expr(Expr {
-                    val: ExprVal::String(token.lexeme),
-                    prec: Precedence::Lowest,
-                })),
-                _ => break,
+                _ => body.push(Statement::Expr(self.parse_expr()?))
             }
         }
         
@@ -382,5 +374,6 @@ mod tests {
             ExprVal::String("Hello World :D".into())
         }
     }
+
 }
 
