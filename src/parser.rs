@@ -361,5 +361,19 @@ mod tests {
         assert!(node.prec < rhs.prec);
         assert!(lhs.prec == lhs.prec);
     }
+
+    #[test]
+    fn parse_expr_should_return_string_node() {
+        let mut parser = Parser::new("\"Hello World :D\"").unwrap();
+        let node = parser.parse_expr().unwrap();
+        let (str) = match node.val {
+            ExprVal::String(s) => s,
+            _ => panic!(),
+        };
+        assert_eq! {
+            node,
+            ExprVal::String("Hello World :D".into())
+        }
+    }
 }
 
