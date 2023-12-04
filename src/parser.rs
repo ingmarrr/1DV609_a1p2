@@ -74,5 +74,12 @@ mod tests {
             })
         );
     }
+
+    #[test]
+    fn parse_assert_should_return_correct_token() {
+        let mut parser = Parser::new("1");
+        let result = parser.assert(TokenKind::Int);
+        assert!(result.is_ok());
+    }
 }
 
