@@ -131,6 +131,29 @@ pub enum Expr {
     },
 }
 
+impl Expr {
+
+    pub fn precedence(&self) -> Precedence {
+        match self {
+            Expr::Int(_) => Precedence::Lowest,
+            Expr::BinOp { op, .. } => match op {
+                BinOp::Add | BinOp::Sub => Precedence::Additive,
+                BinOp::Mul | BinOp::Div => Precedence::Multiplicative,
+            },
+        }
+    }
+
+}
+
+pub enum Precedence {
+    Lowest = 0,
+    Additive,
+    Multiplicative,
+    Prefix,
+    Postfix,
+    Call,
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum BinOp {
     Add,
