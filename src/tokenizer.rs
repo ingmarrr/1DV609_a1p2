@@ -14,6 +14,18 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
+    pub fn scan(&mut self) -> Result<Vec<Token>, TokenizerError> {
+        let mut tokens = Vec::new();
+        loop {
+            let token = self.next_token()?;
+            if token.kind == TokenKind::Eof {
+                break;
+            }
+            tokens.push(token);
+        }
+        Ok(tokens)
+    }
+
     pub fn next_token(&mut self) -> Result<Token, TokenizerError> {
         match self.src.peek() {
             Some(c) if c.is_ascii_digit() => self.read_number(),
@@ -606,12 +618,15 @@ pub mod tests {
 
     #[test]
     fn tokenizer_should_return_token_buffer() {
-        let mut tokenizer = Tokenizer::new("let foo = 123.45");
+        let mut tokenizer = Tokenizer::new("let foo := 123.45");
         let buffer = tokenizer.scan().unwrap();
-        assert_eq!(buffer.len(), 4);
+        assert_eq!(buffer.len(), 7);
         assert_eq!(buffer[0].kind, TokenKind::Let);
-        assert_eq!(buffer[1].kind, TokenKind::Ident);
-        assert_eq!(buffer[2].kind, TokenKind::Assign);
-        assert_eq!(buffer[3].kind, TokenKind::Float);
+        assert_eq!(buffer[1].kind, TokenKind::HorizontalWs);
+        assert_eq!(buffer[2].kind, TokenKind::Ident);
+        assert_eq!(buffer[3].kind, TokenKind::HorizontalWs);
+        assert_eq!(buffer[4].kind, TokenKind::Assign);
+        assert_eq!(buffer[5].kind, TokenKind::HorizontalWs);
+        assert_eq!(buffer[6].kind, TokenKind::Float);
     }
 }
