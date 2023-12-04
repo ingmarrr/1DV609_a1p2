@@ -44,15 +44,20 @@ impl<'a> Parser {
             _ => return Err(ParseError::UnexpectedToken(token)),
         };
 
-        if let Some(token) = self.consume_if(TokenKind::Add) {
+        if let Some(token) = self.consume_if_union(&[
+            TokenKind::Add, 
+            TokenKind::Sub, 
+            TokenKind::Mul, 
+            TokenKind::Div
+        ]) {
             let rhs = self.parse_expr()?;
-            return Ok(Expr::BinOp{
+            Ok(Expr::BinOp{
                 lhs: Box::new(lhs),
-                op: BinOp::Add,
+                op: BinOp::from(token.kind),
                 rhs: Box::new(rhs),
-            });
-        } else {
-            return Ok(lhs);
+            })
+        }  else {
+            Ok(lhs)
         }
     }
 
@@ -79,6 +84,15 @@ impl<'a> Parser {
     pub fn consume_if(&mut self, kind: TokenKind) -> Option<Token> {
         if let Some(token) = self.tokens.peek() {
             if token.kind == kind {
+                return self.tokens.next();
+            }
+        }
+        None
+    }
+
+    pub fn consume_if_union(&mut self, kind: &[TokenKind]) -> Option<Token> {
+        if let Some(token) = self.tokens.peek() {
+            if kind.contains(&token.kind) {
                 return self.tokens.next();
             }
         }
@@ -123,6 +137,18 @@ pub enum BinOp {
     Sub,
     Mul,
     Div,
+}
+
+impl From<TokenKind> for BinOp {
+    fn from(kind: TokenKind) -> Self {
+        match kind {
+            TokenKind::Add => BinOp::Add,
+            TokenKind::Sub => BinOp::Sub,
+            TokenKind::Mul => BinOp::Mul,
+            TokenKind::Div => BinOp::Div,
+            _ => panic!("Invalid token kind: {:?}", kind),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -194,6 +220,24 @@ mod tests {
                 lhs: Box::new(Expr::Int(1)),
                 op: BinOp::Add,
                 rhs: Box::new(Expr::Int(2))
+            }
+        );
+    }
+
+    #[test]
+    fn parse_expr_should_return_nested_binop_node() {
+        let mut parser = Parser::new("1 + 2 * 3").unwrap();
+        let node = parser.parse_expr().unwrap();
+        assert_eq!(
+            node,
+            Expr::BinOp {
+                lhs: Box::new(Expr::Int(1)),
+                op: BinOp::Add,
+                rhs: Box::new(Expr::BinOp {
+                    lhs: Box::new(Expr::Int(2)),
+                    op: BinOp::Mul,
+                    rhs: Box::new(Expr::Int(3))
+                })
             }
         );
     }
