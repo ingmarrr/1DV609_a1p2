@@ -57,6 +57,9 @@ impl<'a> Parser {
         Ok(self.tokens.next().unwrap().clone())
     }
 
+    pub fn consume_if(&mut self, kind: TokenKind) -> Option<Token> {
+        None
+    }
 
     pub fn assert(&mut self, kind: TokenKind) -> Result<Token, ParseError> {
         let token = self.consume()?;
