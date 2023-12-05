@@ -76,6 +76,8 @@ impl<'a> Tokenizer<'a> {
             "else" => Some(Else),
             "for" => Some(For),
             "return" => Some(Return),
+            "int" => Some(IntKw),
+            "str" => Some(StrKw),
             _ => None,
         }
     }
@@ -210,6 +212,8 @@ pub enum TokenKind {
     Else,
     For,
     Return,
+    IntKw,
+    StrKw,
 
     Ident,
     Int,
@@ -386,6 +390,8 @@ impl std::fmt::Display for TokenKind {
             TokenKind::Else => write!(f, "else"),
             TokenKind::For => write!(f, "for"),
             TokenKind::Return => write!(f, "return"),
+            TokenKind::IntKw => write!(f, "int"),
+            TokenKind::StrKw => write!(f, "str"),
 
             TokenKind::Ident => write!(f, "identifier"),
             TokenKind::Int => write!(f, "integer"),

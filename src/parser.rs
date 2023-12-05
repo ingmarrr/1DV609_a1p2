@@ -40,20 +40,37 @@ impl<'a> Parser {
     pub fn parse_let(&mut self) -> Result<Let, ParseError> {
         self.assert(TokenKind::Let)?;
         let name = self.assert(TokenKind::Ident)?;
+        let ty = match self.consume_if(TokenKind::Colon) {
+            Some(_) => {
+                match self.assert_union(&[
+                    TokenKind::IntKw,
+                    TokenKind::StrKw,
+                ])?.kind {
+                    TokenKind::IntKw => Ty::Int,
+                    TokenKind::StrKw => Ty::String,
+                    _ => unreachable!()
+                }
+            }
+            None => Ty::Unknown,
+        };
 
-        match self.assert_union(&[
-            TokenKind::Eq,
-            TokenKind::Colon,
-        ])?.kind {
-            TokenKind::Eq |
-            TokenKind::Colon => {
-                Ok(Let {
-                    name: "x".into(),
-                    ty: Ty::Int,
-                    expr: Expr {
-                        val: ExprVal::Int(1),
-                        prec: Precedence::Lowest,
+        match self.assert(TokenKind::Eq)?.kind {
+            TokenKind::Eq => {
+                let expr = self.parse_expr()?;
+                let ty = match ty {
+                    Ty::Unknown => {
+                        match expr.val {
+                            ExprVal::Int(_) => Ty::Int,
+                            ExprVal::String(_) => Ty::String,
+                            _ => unreachable!()
+                        }
                     }
+                    _ => ty
+                };
+                Ok(Let {
+                    name: name.lexeme,
+                    ty,
+                    expr,
                 })
             }
             _ => unreachable!()
@@ -187,6 +204,8 @@ pub struct Let {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Ty {
     Int,
+    String,
+    Unknown,
 }
 
 
