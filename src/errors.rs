@@ -5,6 +5,9 @@ pub enum ParseError {
     #[error("Unexpected token: {0:?}")]
     UnexpectedToken(crate::tokenizer::Token),
 
+    #[error("Expected: {0} , found: {1}")]
+    Expected(String, String),
+
     #[error(transparent)]
     TokenizerError(#[from] TokenizerError),
 

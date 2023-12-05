@@ -27,14 +27,7 @@ impl<'a> Parser {
 
         while let Ok(token) = self.lookahead() {
             body.push(match token.kind {
-                TokenKind::Let => Stmt::Decl(Decl::Let(Let {
-                    name: "x".into(),
-                    ty: Ty::Int,
-                    expr: Expr {
-                        val: ExprVal::Int(1),
-                        prec: Precedence::Lowest,
-                    }
-                })),
+                TokenKind::Let => Stmt::Decl(Decl::Let(self.parse_let()?)),
                 _ => Stmt::Expr(self.parse_expr()?)
             })
         }
@@ -44,15 +37,27 @@ impl<'a> Parser {
         })
     }
 
-    pub fn parse_decl(&mut self) -> Result<Decl, ParseError> {
-        Ok(Decl::Let(Let {
-            name: "x".into(),
-            ty: Ty::Int,
-            expr: Expr {
-                val: ExprVal::Int(1),
-                prec: Precedence::Lowest,
+    pub fn parse_let(&mut self) -> Result<Let, ParseError> {
+        self.assert(TokenKind::Let)?;
+        let name = self.assert(TokenKind::Ident)?;
+
+        match self.assert_union(&[
+            TokenKind::Eq,
+            TokenKind::Colon,
+        ])?.kind {
+            TokenKind::Eq |
+            TokenKind::Colon => {
+                Ok(Let {
+                    name: "x".into(),
+                    ty: Ty::Int,
+                    expr: Expr {
+                        val: ExprVal::Int(1),
+                        prec: Precedence::Lowest,
+                    }
+                })
             }
-        }))
+            _ => unreachable!()
+        }
     }
 
     pub fn parse_expr(&mut self) -> Result<Expr, ParseError> {
@@ -137,6 +142,20 @@ impl<'a> Parser {
         let token = self.consume()?;
         if token.kind != kind {
             return Err(ParseError::UnexpectedToken(token.clone()));
+        }
+        Ok(token)
+    }
+
+    pub fn assert_union(&mut self, kinds: &[TokenKind]) -> Result<Token, ParseError> {
+        let token = self.consume()?;
+        if !kinds.contains(&token.kind) {
+            return Err(ParseError::Expected(
+                kinds.iter()
+                    .map(|kind| kind.to_string())
+                    .collect::<Vec<_>>()
+                    .join(" | "),
+                token.kind.to_string()
+            ))
         }
         Ok(token)
     }
@@ -281,6 +300,20 @@ mod tests {
     }
 
     #[test]
+    fn parse_assert_union_should_return_error_msg() {
+        let mut parser = Parser::new("1").unwrap();
+        let result = parser.assert_union(&[
+            TokenKind::Add,
+            TokenKind::Sub,
+            TokenKind::Mul,
+        ]).map_err(|err| err.to_string()).unwrap_err();
+        assert_eq! {
+            result,
+            "Expected: + | - | * , found: integer".to_string()
+        }
+    }
+
+    #[test]
     fn parse_assert_should_return_error_on_unexpected_token() {
         let mut parser = Parser::new("1").unwrap();
         let result = parser.assert(TokenKind::String);
@@ -411,18 +444,53 @@ mod tests {
     #[test]
     fn parse_statement_should_return_let() {
         let mut parser = Parser::new("let x = 1").unwrap();
-        let node = parser.parse_decl().unwrap();
+        let node = parser.parse_let().unwrap();
         assert_eq! {
             node,
-            Decl::Let(Let {
+            Let {
                 name: "x".into(),
                 ty: Ty::Int,
                 expr: Expr {
                     val: ExprVal::Int(1),
                     prec: Precedence::Lowest,
                 }
-            })
+            }
         }
     }
+
+    #[test]
+    fn parse_statement_should_return_let_with_type() {
+        let mut parser = Parser::new("let x: int = 1").unwrap();
+        let node = parser.parse_let().unwrap();
+        assert_eq! {
+            node,
+            Let {
+                name: "x".into(),
+                ty: Ty::Int,
+                expr: Expr {
+                    val: ExprVal::Int(1),
+                    prec: Precedence::Lowest,
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn parse_statement_should_return_let_with_string_expr() {
+        let mut parser = Parser::new("let x = \"Hello World :D\"").unwrap();
+        let node = parser.parse_let().unwrap();
+        assert_eq! {
+            node,
+            Let {
+                name: "x".into(),
+                ty: Ty::String,
+                expr: Expr {
+                    val: ExprVal::String("Hello World :D".into()),
+                    prec: Precedence::Lowest,
+                }
+            }
+        }
+    }
+
 }
 
