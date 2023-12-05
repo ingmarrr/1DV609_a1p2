@@ -88,6 +88,10 @@ impl<'a> Parser {
                 val: ExprVal::String(token.lexeme),
                 prec: Precedence::Lowest,
             },
+            TokenKind::Ident => Expr {
+                val: ExprVal::Var(token.lexeme),
+                prec: Precedence::Lowest,
+            },
             TokenKind::Lparen => {
                 let mut expr = self.parse_expr()?;
                 self.assert(TokenKind::Rparen)?;
@@ -219,6 +223,7 @@ pub struct Expr {
 pub enum ExprVal {
     Int(i64),
     String(String),
+    Var(String),
     BinOp {
         lhs: Box<Expr>,
         op: BinOp,
@@ -230,7 +235,8 @@ impl ExprVal {
     pub fn precedence(&self) -> Precedence {
         match self {
             ExprVal::String(_) |
-            ExprVal::Int(_) => Precedence::Lowest,
+            ExprVal::Int(_) |
+            ExprVal::Var(_) => Precedence::Lowest,
             ExprVal::BinOp { op, .. } => match op {
                 BinOp::Add | BinOp::Sub => Precedence::Additive,
                 BinOp::Mul | BinOp::Div => Precedence::Multiplicative,
