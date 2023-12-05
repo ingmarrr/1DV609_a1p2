@@ -80,16 +80,10 @@ impl<'a> Parser {
     pub fn parse_expr(&mut self) -> Result<Expr, ParseError> {
         let token = self.consume()?;
         let lhs = match token.kind {
-            TokenKind::Int => Expr {
-                val: ExprVal::Int(token.lexeme.parse()?),
-                prec: Precedence::Lowest,
-            },
-            TokenKind::String => Expr {
-                val: ExprVal::String(token.lexeme),
-                prec: Precedence::Lowest,
-            },
-            TokenKind::Ident => Expr {
-                val: ExprVal::Var(token.lexeme),
+            TokenKind::Int 
+            | TokenKind::String
+            | TokenKind::Ident => Expr {
+                val: ExprVal::from((token.kind, token.lexeme)),
                 prec: Precedence::Lowest,
             },
             TokenKind::Lparen => {
@@ -217,6 +211,17 @@ pub enum Ty {
 pub struct Expr {
     pub val: ExprVal,
     pub prec: Precedence,
+}
+
+impl From<(TokenKind, String)> for ExprVal {
+    fn from(value: (TokenKind, String)) -> Self {
+        match value.0 {
+            TokenKind::Int => ExprVal::Int(value.1.parse().unwrap()),
+            TokenKind::String => ExprVal::String(value.1),
+            TokenKind::Ident => ExprVal::Var(value.1),
+            _ => panic!("Invalid token kind: {:?}", value.0),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
