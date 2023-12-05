@@ -62,7 +62,7 @@ impl<'a> Parser {
                         match expr.val {
                             ExprVal::Int(_) => Ty::Int,
                             ExprVal::String(_) => Ty::String,
-                            _ => unreachable!()
+                            _ => Ty::Unknown,
                         }
                     }
                     _ => ty
@@ -505,6 +505,23 @@ mod tests {
                 ty: Ty::String,
                 expr: Expr {
                     val: ExprVal::String("Hello World :D".into()),
+                    prec: Precedence::Lowest,
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn parse_statement_should_return_let_with_unknown_type() {
+        let mut parser = Parser::new("let x = name").unwrap();
+        let node = parser.parse_let().unwrap();
+        assert_eq! {
+            node,
+            Let {
+                name: "x".into(),
+                ty: Ty::Unknown,
+                expr: Expr {
+                    val: ExprVal::Var("name".into()),
                     prec: Precedence::Lowest,
                 }
             }
