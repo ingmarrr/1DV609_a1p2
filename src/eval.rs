@@ -26,46 +26,47 @@ impl Evaluator {
             ExprVal::Int(i) => Ok(Value::Int(i)),
             ExprVal::Float(f) => Ok(Value::Float(f)),
             ExprVal::String(ref s) => Ok(Value::String(s.to_owned())),
-            ExprVal::BinOp { lhs, op, rhs } => match (self.eval_expr(*lhs)?, self.eval_expr(*rhs)?)
-            {
-                (Value::Int(l), Value::Int(r)) => match op {
-                    BinOp::Add => Ok(Value::Int(l + r)),
-                    BinOp::Sub => Ok(Value::Int(l - r)),
-                    BinOp::Mul => Ok(Value::Int(l * r)),
-                    BinOp::Div => Ok(Value::Int(l / r)),
-                },
-                (Value::Float(l), Value::Float(r)) => match op {
-                    BinOp::Add => Ok(Value::Float(l + r)),
-                    BinOp::Sub => Ok(Value::Float(l - r)),
-                    BinOp::Mul => Ok(Value::Float(l * r)),
-                    BinOp::Div => Ok(Value::Float(l / r)),
-                },
-                (Value::Int(l), Value::Float(r)) => match op {
-                    BinOp::Add => Ok(Value::Float(l as f64 + r)),
-                    BinOp::Sub => Ok(Value::Float(l as f64 - r)),
-                    BinOp::Mul => Ok(Value::Float(l as f64 * r)),
-                    BinOp::Div => Ok(Value::Float(l as f64 / r)),
-                },
-                (Value::Float(l), Value::Int(r)) => match op {
-                    BinOp::Add => Ok(Value::Float(l + r as f64)),
-                    BinOp::Sub => Ok(Value::Float(l - r as f64)),
-                    BinOp::Mul => Ok(Value::Float(l * r as f64)),
-                    BinOp::Div => Ok(Value::Float(l / r as f64)),
-                },
-                (Value::String(l), Value::String(r)) => match op {
-                    BinOp::Add => Ok(Value::String(l + &r)),
-                    _ => unreachable!(),
-                },
-                (Value::String(l), Value::Int(r)) => match op {
-                    BinOp::Mul => Ok(Value::String(l.repeat(r as usize))),
-                    _ => unreachable!(),
-                },
-                (Value::Int(l), Value::String(r)) => match op {
-                    BinOp::Mul => Ok(Value::String(r.repeat(l as usize))),
-                    _ => unreachable!(),
-                },
-                _ => unimplemented!(),
-            },
+            ExprVal::BinOp { lhs, op, rhs } => {
+                match (self.eval_expr(*lhs)?, self.eval_expr(*rhs)?) {
+                    (Value::Int(l), Value::Int(r)) => match op {
+                        BinOp::Add => Ok(Value::Int(l + r)),
+                        BinOp::Sub => Ok(Value::Int(l - r)),
+                        BinOp::Mul => Ok(Value::Int(l * r)),
+                        BinOp::Div => Ok(Value::Int(l / r)),
+                    },
+                    (Value::Float(l), Value::Float(r)) => match op {
+                        BinOp::Add => Ok(Value::Float(l + r)),
+                        BinOp::Sub => Ok(Value::Float(l - r)),
+                        BinOp::Mul => Ok(Value::Float(l * r)),
+                        BinOp::Div => Ok(Value::Float(l / r)),
+                    },
+                    (Value::Int(l), Value::Float(r)) => match op {
+                        BinOp::Add => Ok(Value::Float(l as f64 + r)),
+                        BinOp::Sub => Ok(Value::Float(l as f64 - r)),
+                        BinOp::Mul => Ok(Value::Float(l as f64 * r)),
+                        BinOp::Div => Ok(Value::Float(l as f64 / r)),
+                    },
+                    (Value::Float(l), Value::Int(r)) => match op {
+                        BinOp::Add => Ok(Value::Float(l + r as f64)),
+                        BinOp::Sub => Ok(Value::Float(l - r as f64)),
+                        BinOp::Mul => Ok(Value::Float(l * r as f64)),
+                        BinOp::Div => Ok(Value::Float(l / r as f64)),
+                    },
+                    (Value::String(l), Value::String(r)) => match op {
+                        BinOp::Add => Ok(Value::String(l + &r)),
+                        _ => unreachable!(),
+                    },
+                    (Value::String(l), Value::Int(r)) => match op {
+                        BinOp::Mul => Ok(Value::String(l.repeat(r as usize))),
+                        _ => unreachable!(),
+                    },
+                    (Value::Int(l), Value::String(r)) => match op {
+                        BinOp::Mul => Ok(Value::String(r.repeat(l as usize))),
+                        _ => unreachable!(),
+                    },
+                    _ => unimplemented!(),
+                }
+            }
             _ => unimplemented!(),
         }
     }

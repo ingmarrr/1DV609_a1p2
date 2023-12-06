@@ -34,7 +34,6 @@ where
         let mut body = Vec::new();
 
         while let Ok(token) = self.lookahead() {
-            let tclone = token.clone();
             let res = match token.kind {
                 TokenKind::Let => match self.parse_let() {
                     Ok(decl) => Stmt::Decl(Decl::Let(decl)),
@@ -128,16 +127,78 @@ where
             TokenKind::Div
         ]) {
             let rhs = self.parse_expr()?;
-            Ok(Expr {
+            let expr = Expr {
                 val: ExprVal::BinOp {
                     lhs: Box::new(lhs),
                     op: BinOp::from(token.kind),
                     rhs: Box::new(rhs),
                 },
-                prec: Precedence::from(token.kind)
-            })
+                prec: Precedence::from(token.kind),
+            };
+            let new_expr = Self::sink(expr);
+            Ok(new_expr)
         }  else {
             Ok(lhs)
+        }
+    }
+
+    pub fn sink(mut expr: Expr) -> Expr {
+        match expr.clone() {
+            Expr {
+                val: ExprVal::BinOp { lhs, op, rhs },
+                prec,
+            } => {
+                if prec > lhs.prec {
+                    if let ExprVal::BinOp { lhs: llhs, op: op2, rhs: lrhs } = lhs.val {
+                        if prec > llhs.prec {
+                            expr = Expr {
+                                val: ExprVal::BinOp {
+                                    lhs: Box::new(Self::sink(Expr {
+                                        val: ExprVal::BinOp {
+                                            lhs: lrhs,
+                                            op: op.clone(),
+                                            rhs: rhs.clone(),
+                                        },
+                                        prec,
+                                    })),
+                                    op: op2,
+                                    rhs: llhs,
+                                },
+                                prec,
+                            };
+                        }
+                    };
+                } 
+                let (lhs, op, rhs) = match expr.clone().val {
+                    ExprVal::BinOp { lhs, op, rhs } => (lhs, op, rhs),
+                    _ => return expr,
+                };
+                if prec > rhs.prec {
+                    if let ExprVal::BinOp { lhs: rlhs, op: op2, rhs: rrhs } = rhs.val {
+                        if prec > rrhs.prec {
+                            expr = Expr {
+                                val: ExprVal::BinOp {
+                                    lhs: rrhs.clone(),
+                                    op: op2,
+                                    rhs: Box::new(Self::sink(Expr {
+                                        val: ExprVal::BinOp {
+                                            lhs: lhs.clone(),
+                                            op,
+                                            rhs: rlhs,
+                                        },
+                                        prec,
+                                    })),
+                                },
+                                prec: rrhs.prec,
+                            };
+                        }
+                    };
+                    expr
+                } else {
+                    expr
+                }
+            }
+            _ => expr
         }
     }
 
@@ -511,6 +572,88 @@ mod tests {
         assert!(node.prec < lhs.prec);
         assert!(node.prec < rhs.prec);
         assert!(lhs.prec == lhs.prec);
+    }
+
+    #[test]
+    fn parse_expr_should_swap_add_and_mul_expression() {
+        let mut parser = Parser::new("1 * 2 + 3", ());
+        let node = parser.parse_expr().unwrap();
+        match node.val {
+            ExprVal::BinOp { lhs, op, rhs } => {
+                assert_eq!(op, BinOp::Add);
+                assert_eq!(*lhs, Expr {
+                    val: ExprVal::Int(3),
+                    prec: Precedence::Lowest,
+                });
+                assert_eq!(rhs.val, ExprVal::BinOp {
+                    lhs: Box::new(Expr {
+                        val: ExprVal::Int(1),
+                        prec: Precedence::Lowest,
+                    }),
+                    op: BinOp::Mul,
+                    rhs: Box::new(Expr {
+                        val: ExprVal::Int(2),
+                        prec: Precedence::Lowest,
+                    }),
+                });
+            },
+            _ => panic!(),
+        }
+        
+    }
+
+    #[test]
+    fn parse_expr_should_sink_mul_expr_to_end() {
+        let mut parser = Parser::new("10 * 2 + 3 + 4 + 5", ());
+        let node = parser.parse_expr().unwrap();
+        println!("Value: {:#?}", node.val);
+        assert_eq! {
+            node,
+            Expr {
+                val: ExprVal::BinOp {
+                    lhs: Box::new(Expr {
+                        val: ExprVal::BinOp {
+                            lhs: Box::new(Expr {
+                                val: ExprVal::Int(3),
+                                prec: Precedence::Lowest,
+                            }),
+                            op: BinOp::Add,
+                            rhs: Box::new(Expr {
+                                val: ExprVal::BinOp {
+                                    lhs: Box::new(Expr {
+                                        val: ExprVal::Int(4),
+                                        prec: Precedence::Lowest,
+                                    }),
+                                    op: BinOp::Add,
+                                    rhs: Box::new(Expr {
+                                        val: ExprVal::Int(5),
+                                        prec: Precedence::Lowest,
+                                    }),
+                                },
+                                prec: Precedence::Additive,
+                            }),
+                        },
+                        prec: Precedence::Additive,
+                    }),
+                    op: BinOp::Add,
+                    rhs: Box::new(Expr {
+                        val: ExprVal::BinOp {
+                            lhs: Box::new(Expr {
+                                val: ExprVal::Int(10),
+                                prec: Precedence::Lowest,
+                            }),
+                            op: BinOp::Mul,
+                            rhs: Box::new(Expr {
+                                 val: ExprVal::Int(2),
+                                prec: Precedence::Lowest,
+                            }),
+                        },
+                        prec: Precedence::Multiplicative,
+                    }),
+                },
+                prec: Precedence::Additive,
+            }
+        }
     }
 
     #[test]

@@ -17,24 +17,24 @@ pub fn exec(args: &[String], writer: &mut dyn Write) -> Result<(), ExecError> {
 pub fn help(args: &[String], writer: &mut dyn Write) -> Result<(), ExecError> {
     match args.len() {
         0 => {
-            writer.write(&usage().as_bytes());
+            let _ = writer.write(&usage().as_bytes());
         }
         // Can only be one argument, since we check in the exec function if
         // the user provided too many arguments.
         _ => {
             let cmd = find_or(&args[0], ExecError::InvalidArg(args[0].clone()))?;
-            writer.write(&format!("Usage:\n  {}\n", cmd).as_bytes());
+            let _ = writer.write(&format!("Usage:\n  {}\n", cmd).as_bytes());
         }
     };
-    writer.flush();
+    let _ = writer.flush();
     Ok(())
 }
 
-pub fn repl(_: &[String], writer: &mut dyn Write) -> Result<(), ExecError> {
+pub fn repl(_: &[String], _writer: &mut dyn Write) -> Result<(), ExecError> {
     Ok(())
 }
 
-pub fn sim(_: &[String], writer: &mut dyn Write) -> Result<(), ExecError> {
+pub fn sim(_: &[String], _writer: &mut dyn Write) -> Result<(), ExecError> {
     Err(ExecError::MissingArgs)
 }
 

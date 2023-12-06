@@ -1,4 +1,2 @@
 #[cfg(test)]
-pub mod tests {
-    use super::*;
-}
+pub mod tests {}
