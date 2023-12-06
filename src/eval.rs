@@ -52,6 +52,18 @@ impl Evaluator {
                     BinOp::Mul => Ok(Value::Float(l * r as f64)),
                     BinOp::Div => Ok(Value::Float(l / r as f64)),
                 },
+                (Value::String(l), Value::String(r)) => match op {
+                    BinOp::Add => Ok(Value::String(l + &r)),
+                    _ => unreachable!(),
+                },
+                (Value::String(l), Value::Int(r)) => match op {
+                    BinOp::Mul => Ok(Value::String(l.repeat(r as usize))),
+                    _ => unreachable!(),
+                },
+                (Value::Int(l), Value::String(r)) => match op {
+                    BinOp::Mul => Ok(Value::String(r.repeat(l as usize))),
+                    _ => unreachable!(),
+                },
                 _ => unimplemented!(),
             },
             _ => unimplemented!(),
@@ -119,26 +131,174 @@ pub mod tests {
         assert_eq!(res, Ok(vec![Value::String("hello".to_owned())]));
     }
 
-    #[test]
-    fn eval_binary_add_expr_with_ints_should_return_int() {
-        let mut eval = Evaluator::new();
-        let prog = Prog {
-            body: vec![Stmt::Expr(Expr {
-                val: ExprVal::BinOp {
-                    lhs: Box::new(Expr {
-                        val: ExprVal::Int(42),
+    macro_rules! test_bin_expr {
+        ($name:ident, $lhs:expr, $op:expr, $rhs:expr, $res:expr) => {
+            #[test]
+            fn $name() {
+                let mut eval = Evaluator::new();
+                let prog = Prog {
+                    body: vec![Stmt::Expr(Expr {
+                        val: ExprVal::BinOp {
+                            lhs: Box::new(Expr {
+                                val: $lhs,
+                                prec: Precedence::Lowest,
+                            }),
+                            op: $op,
+                            rhs: Box::new(Expr {
+                                val: $rhs,
+                                prec: Precedence::Lowest,
+                            }),
+                        },
                         prec: Precedence::Lowest,
-                    }),
-                    op: crate::parser::BinOp::Add,
-                    rhs: Box::new(Expr {
-                        val: ExprVal::Int(42),
-                        prec: Precedence::Lowest,
-                    }),
-                },
-                prec: Precedence::Lowest,
-            })],
+                    })],
+                };
+                let res = eval.eval(prog);
+                assert_eq!(res, Ok(vec![$res]));
+            }
         };
-        let res = eval.eval(prog);
-        assert_eq!(res, Ok(vec![Value::Int(84)]));
     }
+
+    test_bin_expr!(
+        eval_binary_add_expr_with_ints_should_return_int,
+        ExprVal::Int(42),
+        BinOp::Add,
+        ExprVal::Int(42),
+        Value::Int(84)
+    );
+
+    test_bin_expr!(
+        eval_binary_add_expr_with_floats_should_return_float,
+        ExprVal::Float(42.0),
+        BinOp::Add,
+        ExprVal::Float(42.0),
+        Value::Float(84.0)
+    );
+
+    test_bin_expr!(
+        eval_binary_add_expr_with_int_and_float_should_return_float,
+        ExprVal::Int(42),
+        BinOp::Add,
+        ExprVal::Float(42.0),
+        Value::Float(84.0)
+    );
+
+    test_bin_expr!(
+        eval_binary_add_expr_with_float_and_int_should_return_float,
+        ExprVal::Float(42.0),
+        BinOp::Add,
+        ExprVal::Int(42),
+        Value::Float(84.0)
+    );
+
+    test_bin_expr!(
+        eval_binary_sub_expr_with_ints_should_return_int,
+        ExprVal::Int(42),
+        BinOp::Sub,
+        ExprVal::Int(42),
+        Value::Int(0)
+    );
+
+    test_bin_expr!(
+        eval_binary_sub_expr_with_floats_should_return_float,
+        ExprVal::Float(42.0),
+        BinOp::Sub,
+        ExprVal::Float(20.5),
+        Value::Float(21.5)
+    );
+
+    test_bin_expr!(
+        eval_binary_sub_expr_with_int_and_float_should_return_float,
+        ExprVal::Int(42),
+        BinOp::Sub,
+        ExprVal::Float(20.5),
+        Value::Float(21.5)
+    );
+
+    test_bin_expr!(
+        eval_binary_sub_expr_with_float_and_int_should_return_float,
+        ExprVal::Float(42.0),
+        BinOp::Sub,
+        ExprVal::Int(42),
+        Value::Float(0.0)
+    );
+
+    test_bin_expr!(
+        eval_binary_mul_expr_with_ints_should_return_int,
+        ExprVal::Int(4),
+        BinOp::Mul,
+        ExprVal::Int(4),
+        Value::Int(16)
+    );
+
+    test_bin_expr!(
+        eval_binary_mul_expr_with_floats_should_return_float,
+        ExprVal::Float(4.0),
+        BinOp::Mul,
+        ExprVal::Float(1.5),
+        Value::Float(6.0)
+    );
+
+    test_bin_expr!(
+        eval_binary_mul_expr_with_int_and_float_should_return_float,
+        ExprVal::Int(4),
+        BinOp::Mul,
+        ExprVal::Float(1.5),
+        Value::Float(6.0)
+    );
+
+    test_bin_expr!(
+        eval_binary_mul_expr_with_float_and_int_should_return_float,
+        ExprVal::Float(4.0),
+        BinOp::Mul,
+        ExprVal::Int(4),
+        Value::Float(16.0)
+    );
+
+    test_bin_expr!(
+        eval_binary_div_expr_with_ints_should_return_int,
+        ExprVal::Int(9),
+        BinOp::Div,
+        ExprVal::Int(2),
+        Value::Int(4)
+    );
+
+    test_bin_expr!(
+        eval_binary_div_expr_with_floats_should_return_float,
+        ExprVal::Float(9.0),
+        BinOp::Div,
+        ExprVal::Float(2.0),
+        Value::Float(4.5)
+    );
+
+    test_bin_expr!(
+        eval_binary_div_expr_with_int_and_float_should_return_float,
+        ExprVal::Int(9),
+        BinOp::Div,
+        ExprVal::Float(2.0),
+        Value::Float(4.5)
+    );
+
+    test_bin_expr!(
+        eval_binary_div_expr_with_float_and_int_should_return_float,
+        ExprVal::Float(9.0),
+        BinOp::Div,
+        ExprVal::Int(2),
+        Value::Float(4.5)
+    );
+
+    test_bin_expr!(
+        eval_binary_mul_expr_with_string_and_int_should_return_string,
+        ExprVal::String("hello".to_owned()),
+        BinOp::Mul,
+        ExprVal::Int(3),
+        Value::String("hellohellohello".to_owned())
+    );
+
+    test_bin_expr!(
+        eval_binary_mul_expr_with_int_and_string_should_return_string,
+        ExprVal::Int(3),
+        BinOp::Mul,
+        ExprVal::String("hello".to_owned()),
+        Value::String("hellohellohello".to_owned())
+    );
 }
