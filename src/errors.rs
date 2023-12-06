@@ -1,6 +1,9 @@
 use std::num::ParseIntError;
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
+pub enum EvalError {}
+
+#[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum SemanticError {
     #[error("Unsupported operator: {0}")]
     UnsupportedOperator(String),

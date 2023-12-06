@@ -1,5 +1,3 @@
-use std::ops::Deref;
-
 use crate::{
     diagnostic::{Diagnostic, DiagnosticInfo},
     errors::SemanticError,

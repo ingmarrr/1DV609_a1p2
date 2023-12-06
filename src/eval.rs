@@ -1,4 +1,4 @@
-use crate::parser::Prog;
+use crate::{errors::EvalError, parser::Prog};
 
 pub struct Evaluator;
 
@@ -7,9 +7,16 @@ impl Evaluator {
         Self
     }
 
-    pub fn eval(&mut self, prog: &Prog) -> Result<Vec<String>, String> {
+    pub fn eval(&mut self, prog: &Prog) -> Result<Vec<Value>, EvalError> {
         Ok(vec![])
     }
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Value {
+    Int(i64),
+    Float(f64),
+    String(String),
 }
 
 #[cfg(test)]
