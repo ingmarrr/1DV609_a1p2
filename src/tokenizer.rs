@@ -1,29 +1,47 @@
 use std::{iter::Peekable, str::Chars};
 
-use crate::errors::TokenizerError;
+use crate::{diagnostic::Diagnostic, errors::TokenizerError};
 
 #[derive(Debug)]
-pub struct Tokenizer<'a> {
+pub struct Tokenizer<'a, D>
+where
+    D: Diagnostic,
+{
     src: Peekable<Chars<'a>>,
+    diag: D,
 }
 
-impl<'a> Tokenizer<'a> {
-    pub fn new(input: &'a str) -> Self {
+impl<'a, D> Tokenizer<'a, D>
+where
+    D: Diagnostic,
+{
+    pub fn new(input: &'a str, diag: D) -> Self {
         Tokenizer {
             src: input.chars().peekable(),
+            diag,
         }
     }
 
-    pub fn scan(&mut self) -> Result<Vec<Token>, TokenizerError> {
+    pub fn scan(&mut self) -> Vec<Token> {
         let mut tokens = Vec::new();
         loop {
-            let token = self.next_token()?;
+            let token = self.next_token();
+            if let Err(err) = token {
+                self.diag.report(
+                    crate::diagnostic::DiagnosticInfo {
+                        message: format!("{:?}", err),
+                    }
+                    .into(),
+                );
+                continue;
+            };
+            let token = token.unwrap();
             if token.kind == TokenKind::Eof {
                 break;
             }
             tokens.push(token);
         }
-        Ok(tokens)
+        tokens
     }
 
     pub fn next_token(&mut self) -> Result<Token, TokenizerError> {
@@ -488,7 +506,7 @@ pub mod tests {
 
     #[test]
     fn tokenizer_empty_should_return_eof_on_next() {
-        let mut tokenizer = Tokenizer::new("");
+        let mut tokenizer = Tokenizer::new("", ());
         assert_eq!(
             tokenizer.next_token(),
             Ok(Token {
@@ -502,7 +520,7 @@ pub mod tests {
         ($name:ident, $src:expr, $kind:ident, $expected:expr) => {
             #[test]
             fn $name() {
-                let mut tokenizer = Tokenizer::new($src);
+                let mut tokenizer = Tokenizer::new($src, ());
                 assert_eq! {
                     tokenizer.next_token(),
                     Ok(Token {
@@ -523,7 +541,7 @@ pub mod tests {
         ($name:ident, $src:expr, $kind:ident) => {
             #[test]
             fn $name() {
-                let mut tokenizer = Tokenizer::new($src);
+                let mut tokenizer = Tokenizer::new($src, ());
                 assert_eq! {
                     tokenizer.next_token(),
                     Err(TokenizerError::$kind)
@@ -578,6 +596,7 @@ pub mod tests {
     fn tokenizer_should_recognize_all_symbols() {
         let mut tokenizer = Tokenizer::new(
             "+ - * / ^ ( ) { } [ ] , . : ; ! ? < > == != := <= >= && || += -= *= /= %= ^= ",
+            (),
         );
         assert_ntkind! {
             tokenizer,
@@ -618,7 +637,7 @@ pub mod tests {
 
     #[test]
     fn tokenizer_should_return_keywords() {
-        let mut tokenizer = Tokenizer::new("let func if else for return ");
+        let mut tokenizer = Tokenizer::new("let func if else for return ", ());
         assert_ntkind! {
             tokenizer,
             Let,
@@ -632,8 +651,8 @@ pub mod tests {
 
     #[test]
     fn tokenizer_should_return_token_buffer() {
-        let mut tokenizer = Tokenizer::new("let foo := 123.45");
-        let buffer = tokenizer.scan().unwrap();
+        let mut tokenizer = Tokenizer::new("let foo := 123.45", ());
+        let buffer = tokenizer.scan();
         println!("{:#?}", buffer);
         assert_eq!(buffer.len(), 4);
         assert_eq!(buffer[0].kind, TokenKind::Let);

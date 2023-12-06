@@ -1,4 +1,5 @@
 pub mod cmd;
+pub mod diagnostic;
 pub mod errors;
 pub mod exec;
 pub mod parser;

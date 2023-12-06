@@ -1,6 +1,12 @@
 use std::num::ParseIntError;
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
+pub enum SemanticError {
+    #[error("Unsupported operator: {0}")]
+    UnsupportedOperator(String),
+}
+
+#[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum ParseError {
     #[error("Unexpected token: {0:?}")]
     UnexpectedToken(crate::tokenizer::Token),

@@ -1,40 +1,66 @@
 use std::iter::Peekable;
 
-use crate::{errors::ParseError, tokenizer::{Tokenizer, TokenKind, Token}};
+use crate::{errors::ParseError, tokenizer::{Tokenizer, TokenKind, Token}, diagnostic::{Diagnostic, DiagnosticInfo}};
 
-#[cfg_attr(test, derive(PartialEq, Eq))]
+#[cfg_attr(test, derive(PartialEq))]
 #[derive(Debug)]
 pub struct Prog {
-    body: Vec<Stmt>,
+    pub body: Vec<Stmt>,
 }
 
-pub struct Parser {
+pub struct Parser<D> 
+where
+    D: Diagnostic
+{
     tokens: Peekable<std::vec::IntoIter<Token>>,
+    diag: D
 }
 
-impl<'a> Parser {
-    pub fn new(src: &'a str) -> Result<Parser, ParseError> {
-        let mut tokenizer = Tokenizer::<'a>::new(src);
+impl<'a, D> Parser<D>
+where
+    D: Diagnostic
+{
+    pub fn new(src: &'a str, diag: D) -> Parser<D> {
+        let mut tokenizer = Tokenizer::<'a>::new(src, diag.clone());
 
-        Ok(Parser {
-            tokens: tokenizer.scan()?.into_iter().peekable(),
-        })
+        Parser {
+            tokens: tokenizer.scan().into_iter().peekable(),
+            diag,
+        }
     }
 
     #[rustfmt::skip]
-    pub fn parse(&mut self) -> Result<Prog, ParseError> {
+    pub fn parse(&mut self) -> Prog {
         let mut body = Vec::new();
 
         while let Ok(token) = self.lookahead() {
-            body.push(match token.kind {
-                TokenKind::Let => Stmt::Decl(Decl::Let(self.parse_let()?)),
-                _ => Stmt::Expr(self.parse_expr()?)
-            })
+            let tclone = token.clone();
+            let res = match token.kind {
+                TokenKind::Let => match self.parse_let() {
+                    Ok(decl) => Stmt::Decl(Decl::Let(decl)),
+                    Err(err) => {
+                        self.diag.report(DiagnosticInfo {
+                            message: err.to_string(),
+                        });
+                        continue;
+                    }
+                },
+                _ => match self.parse_expr() {
+                    Ok(expr) => Stmt::Expr(expr),
+                    Err(err) => {
+                        self.diag.report(DiagnosticInfo {
+                            message: err.to_string(),
+                        });
+                        continue;
+                    }
+                }
+            };
+            body.push(res);
         }
         
-        Ok(Prog {
+        Prog {
             body,
-        })
+        }
     }
 
     pub fn parse_let(&mut self) -> Result<Let, ParseError> {
@@ -177,21 +203,21 @@ impl<'a> Parser {
 
 }
 
-#[cfg_attr(test, derive(PartialEq, Eq))]
+#[cfg_attr(test, derive(PartialEq))]
 #[derive(Debug)]
 pub enum Stmt {
     Decl(Decl),
     Expr(Expr),
 }
 
-#[cfg_attr(test, derive(PartialEq, Eq, Clone))]
+#[cfg_attr(test, derive(PartialEq, Clone))]
 #[derive(Debug)]
 pub enum Decl {
     Let(Let)
 }
 
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Let {
     pub name: String,
     pub ty: Ty,
@@ -202,12 +228,13 @@ pub struct Let {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Ty {
     Int,
+    Float,
     String,
     Unknown,
 }
 
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Expr {
     pub val: ExprVal,
     pub prec: Precedence,
@@ -224,9 +251,32 @@ impl From<(TokenKind, String)> for ExprVal {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+impl Expr {
+    pub fn ty(&self) -> Ty {
+        match self.val {
+            ExprVal::Int(_) => Ty::Int,
+            ExprVal::Float(_) => Ty::Float,
+            ExprVal::String(_) => Ty::String,
+            ExprVal::Var(_) => Ty::Unknown,
+            ExprVal::BinOp { ref lhs, ref rhs, .. } => {
+                match (lhs.ty(), rhs.ty()) {
+                    (Ty::Int, Ty::Int) => Ty::Int,
+                    (Ty::Float, Ty::Float) => Ty::Float,
+                    (Ty::Int, Ty::Float) => Ty::Float,
+                    (Ty::Float, Ty::Int) => Ty::Float,
+                    (Ty::String, Ty::Int) => Ty::String,
+                    (Ty::Int, Ty::String) => Ty::String,
+                    _ => Ty::Unknown,
+                }
+            }
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum ExprVal {
     Int(i64),
+    Float(f64),
     String(String),
     Var(String),
     BinOp {
@@ -241,6 +291,7 @@ impl ExprVal {
         match self {
             ExprVal::String(_) |
             ExprVal::Int(_) |
+            ExprVal::Float(_) |
             ExprVal::Var(_) => Precedence::Lowest,
             ExprVal::BinOp { op, .. } => match op {
                 BinOp::Add | BinOp::Sub => Precedence::Additive,
@@ -301,37 +352,39 @@ mod tests {
 
     #[test]
     fn parser_should_ok_on_empty() {
-        let mut parser = Parser::new("").unwrap();
-        let result = parser.parse();
-        assert!(result.is_ok());
+        let errs = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+        let mut parser = Parser::new("", errs.clone());
+        let _ = parser.parse();
+        assert!(errs.borrow().is_empty());
     }
 
     #[test]
     fn parser_should_return_int_node() {
-        let mut parser = Parser::new("1").unwrap();
+        let errs = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+        let mut parser = Parser::new("1", errs.clone());
         let result = parser.parse();
-        assert!(result.is_ok());
+        assert!(errs.borrow().is_empty());
         assert_eq!(
             result,
-            Ok(Prog {
+            Prog {
                 body: vec![Stmt::Expr(Expr {
                     val: ExprVal::Int(1),
                     prec: Precedence::Lowest,
                 })]
-            })
+            }
         );
     }
 
     #[test]
     fn parse_assert_should_return_correct_token() {
-        let mut parser = Parser::new("1").unwrap();
+        let mut parser = Parser::new("1", ());
         let result = parser.assert(TokenKind::Int);
         assert!(result.is_ok());
     }
 
     #[test]
     fn parse_assert_union_should_return_error_msg() {
-        let mut parser = Parser::new("1").unwrap();
+        let mut parser = Parser::new("1", ());
         let result = parser.assert_union(&[
             TokenKind::Add,
             TokenKind::Sub,
@@ -345,35 +398,35 @@ mod tests {
 
     #[test]
     fn parse_assert_should_return_error_on_unexpected_token() {
-        let mut parser = Parser::new("1").unwrap();
+        let mut parser = Parser::new("1", ());
         let result = parser.assert(TokenKind::String);
         assert!(result.is_err());
     }
 
     #[test]
     fn parse_consume_if_should_return_none_on_wrong_token() {
-        let mut parser = Parser::new("1").unwrap();
+        let mut parser = Parser::new("1", ());
         let result = parser.consume_if(TokenKind::String);
         assert!(result.is_none());
     }
 
     #[test]
     fn parse_consume_if_should_return_token_on_correct_token() {
-        let mut parser = Parser::new("1").unwrap();
+        let mut parser = Parser::new("1", ());
         let result = parser.consume_if(TokenKind::Int);
         assert!(result.is_some());
     }
 
     #[test]
     fn parse_expr_should_return_int_node() {
-        let mut parser = Parser::new("1").unwrap();
+        let mut parser = Parser::new("1", ());
         let node = parser.parse_expr().unwrap().val;
         assert_eq!(node, ExprVal::Int(1));
     }
 
     #[test]
     fn parse_expr_should_return_binop_node() {
-        let mut parser = Parser::new("1 + 2").unwrap();
+        let mut parser = Parser::new("1 + 2", ());
         let node = parser.parse_expr().unwrap().val;
         assert_eq!(
             node,
@@ -393,7 +446,7 @@ mod tests {
 
     #[test]
     fn parse_expr_should_return_nested_binop_node() {
-        let mut parser = Parser::new("1 + 2 * 3").unwrap();
+        let mut parser = Parser::new("1 + 2 * 3", ());
         let node = parser.parse_expr().unwrap().val;
         assert_eq!(
             node,
@@ -425,7 +478,7 @@ mod tests {
 
     #[test]
     fn mul_expr_has_higher_precedence_than_add_expr() {
-        let mut parser = Parser::new("1 + 2 * 3").unwrap();
+        let mut parser = Parser::new("1 + 2 * 3", ());
         let node = parser.parse_expr().unwrap();
         let (lhs, rhs) = match node.val {
             ExprVal::BinOp { lhs, rhs, .. } => (*lhs, *rhs),
@@ -437,7 +490,7 @@ mod tests {
 
     #[test]
     fn paren_add_expr_has_higher_precedence_than_mul_expr() {
-        let mut parser = Parser::new("(1 + 2) * 3").unwrap();
+        let mut parser = Parser::new("(1 + 2) * 3", ());
         let node = parser.parse_expr().unwrap();
         let (lhs, rhs) = match node.val {
             ExprVal::BinOp { lhs, rhs, .. } => (*lhs, *rhs),
@@ -449,7 +502,7 @@ mod tests {
 
     #[test]
     fn two_parenthesized_expressions_have_same_precedence() {
-        let mut parser = Parser::new("(1 + 2) * (3 + 4)").unwrap();
+        let mut parser = Parser::new("(1 + 2) * (3 + 4)", ());
         let node = parser.parse_expr().unwrap();
         let (lhs, rhs) = match node.val {
             ExprVal::BinOp { lhs, rhs, .. } => (*lhs, *rhs),
@@ -462,9 +515,8 @@ mod tests {
 
     #[test]
     fn parse_expr_should_return_string_node() {
-        let mut parser = Parser::new("\"Hello World :D\"").unwrap();
+        let mut parser = Parser::new("\"Hello World :D\"", ());
         let node = parser.parse_expr();
-        println!("{:#?}", node);
         assert_eq! {
             node.unwrap().val,
             ExprVal::String("Hello World :D".into())
@@ -473,7 +525,7 @@ mod tests {
     
     #[test]
     fn parse_statement_should_return_let() {
-        let mut parser = Parser::new("let x = 1").unwrap();
+        let mut parser = Parser::new("let x = 1", ());
         let node = parser.parse_let().unwrap();
         assert_eq! {
             node,
@@ -490,7 +542,7 @@ mod tests {
 
     #[test]
     fn parse_statement_should_return_let_with_type() {
-        let mut parser = Parser::new("let x: int = 1").unwrap();
+        let mut parser = Parser::new("let x: int = 1", ());
         let node = parser.parse_let().unwrap();
         assert_eq! {
             node,
@@ -507,7 +559,7 @@ mod tests {
 
     #[test]
     fn parse_statement_should_return_let_with_string_expr() {
-        let mut parser = Parser::new("let x = \"Hello World :D\"").unwrap();
+        let mut parser = Parser::new("let x = \"Hello World :D\"", ());
         let node = parser.parse_let().unwrap();
         assert_eq! {
             node,
@@ -524,7 +576,7 @@ mod tests {
 
     #[test]
     fn parse_statement_should_return_let_with_unknown_type() {
-        let mut parser = Parser::new("let x = name").unwrap();
+        let mut parser = Parser::new("let x = name", ());
         let node = parser.parse_let().unwrap();
         assert_eq! {
             node,
