@@ -1,4 +1,7 @@
-use crate::{errors::EvalError, parser::Prog};
+use crate::{
+    errors::EvalError,
+    parser::{Prog, Stmt},
+};
 
 pub struct Evaluator;
 
@@ -21,7 +24,7 @@ pub enum Value {
 
 #[cfg(test)]
 pub mod tests {
-    use crate::parser::Prog;
+    use crate::parser::{Expr, ExprVal, Prog};
 
     use super::*;
 
@@ -31,5 +34,18 @@ pub mod tests {
         let prog = Prog { body: vec![] };
         let res = eval.eval(&prog);
         assert_eq!(res, Ok(vec![]));
+    }
+
+    #[test]
+    fn eval_expr_with_int_should_return_int() {
+        let mut eval = Evaluator::new();
+        let prog = Prog {
+            body: vec![Stmt::Expr(Expr {
+                val: ExprVal::Int(42),
+                prec: todo!(),
+            })],
+        };
+        let res = eval.eval(&prog);
+        assert_eq!(res, Ok(vec![Value::Int(42)]));
     }
 }
