@@ -1,6 +1,6 @@
 use crate::{
     errors::EvalError,
-    parser::{Prog, Stmt},
+    parser::{Expr, ExprVal, Prog, Stmt},
 };
 
 pub struct Evaluator;
@@ -14,11 +14,20 @@ impl Evaluator {
         let mut res = vec![];
         for stmt in &prog.body {
             match stmt {
-                Stmt::Expr(expr) => res.push(Value::Int(42)),
+                Stmt::Expr(expr) => self.eval_expr(expr).map(|v| res.push(v))?,
                 _ => unimplemented!(),
             }
         }
         Ok(res)
+    }
+
+    pub fn eval_expr(&self, expr: &Expr) -> Result<Value, EvalError> {
+        match expr.val {
+            ExprVal::Int(i) => Ok(Value::Int(i)),
+            ExprVal::Float(f) => Ok(Value::Float(f)),
+            ExprVal::String(ref s) => Ok(Value::String(s.to_owned())),
+            _ => unimplemented!(),
+        }
     }
 }
 
@@ -31,7 +40,7 @@ pub enum Value {
 
 #[cfg(test)]
 pub mod tests {
-    use crate::parser::{Expr, ExprVal, Prog};
+    use crate::parser::{Expr, ExprVal, Precedence, Prog};
 
     use super::*;
 
@@ -49,10 +58,36 @@ pub mod tests {
         let prog = Prog {
             body: vec![Stmt::Expr(Expr {
                 val: ExprVal::Int(42),
-                prec: todo!(),
+                prec: Precedence::Lowest,
             })],
         };
         let res = eval.eval(&prog);
         assert_eq!(res, Ok(vec![Value::Int(42)]));
+    }
+
+    #[test]
+    fn eval_expr_with_float_should_return_float() {
+        let mut eval = Evaluator::new();
+        let prog = Prog {
+            body: vec![Stmt::Expr(Expr {
+                val: ExprVal::Float(42.0),
+                prec: Precedence::Lowest,
+            })],
+        };
+        let res = eval.eval(&prog);
+        assert_eq!(res, Ok(vec![Value::Float(42.0)]));
+    }
+
+    #[test]
+    fn eval_expr_with_string_should_return_string() {
+        let mut eval = Evaluator::new();
+        let prog = Prog {
+            body: vec![Stmt::Expr(Expr {
+                val: ExprVal::String("hello".to_owned()),
+                prec: Precedence::Lowest,
+            })],
+        };
+        let res = eval.eval(&prog);
+        assert_eq!(res, Ok(vec![Value::String("hello".to_owned())]));
     }
 }
