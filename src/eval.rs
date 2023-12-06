@@ -1,6 +1,6 @@
 use crate::{
     errors::EvalError,
-    parser::{Expr, ExprVal, Prog, Stmt},
+    parser::{BinOp, Expr, ExprVal, Prog, Stmt},
 };
 
 pub struct Evaluator;
@@ -10,9 +10,9 @@ impl Evaluator {
         Self
     }
 
-    pub fn eval(&mut self, prog: &Prog) -> Result<Vec<Value>, EvalError> {
+    pub fn eval(&mut self, prog: Prog) -> Result<Vec<Value>, EvalError> {
         let mut res = vec![];
-        for stmt in &prog.body {
+        for stmt in prog.body.into_iter() {
             match stmt {
                 Stmt::Expr(expr) => self.eval_expr(expr).map(|v| res.push(v))?,
                 _ => unimplemented!(),
@@ -21,11 +21,39 @@ impl Evaluator {
         Ok(res)
     }
 
-    pub fn eval_expr(&self, expr: &Expr) -> Result<Value, EvalError> {
+    pub fn eval_expr(&self, expr: Expr) -> Result<Value, EvalError> {
         match expr.val {
             ExprVal::Int(i) => Ok(Value::Int(i)),
             ExprVal::Float(f) => Ok(Value::Float(f)),
             ExprVal::String(ref s) => Ok(Value::String(s.to_owned())),
+            ExprVal::BinOp { lhs, op, rhs } => match (self.eval_expr(*lhs)?, self.eval_expr(*rhs)?)
+            {
+                (Value::Int(l), Value::Int(r)) => match op {
+                    BinOp::Add => Ok(Value::Int(l + r)),
+                    BinOp::Sub => Ok(Value::Int(l - r)),
+                    BinOp::Mul => Ok(Value::Int(l * r)),
+                    BinOp::Div => Ok(Value::Int(l / r)),
+                },
+                (Value::Float(l), Value::Float(r)) => match op {
+                    BinOp::Add => Ok(Value::Float(l + r)),
+                    BinOp::Sub => Ok(Value::Float(l - r)),
+                    BinOp::Mul => Ok(Value::Float(l * r)),
+                    BinOp::Div => Ok(Value::Float(l / r)),
+                },
+                (Value::Int(l), Value::Float(r)) => match op {
+                    BinOp::Add => Ok(Value::Float(l as f64 + r)),
+                    BinOp::Sub => Ok(Value::Float(l as f64 - r)),
+                    BinOp::Mul => Ok(Value::Float(l as f64 * r)),
+                    BinOp::Div => Ok(Value::Float(l as f64 / r)),
+                },
+                (Value::Float(l), Value::Int(r)) => match op {
+                    BinOp::Add => Ok(Value::Float(l + r as f64)),
+                    BinOp::Sub => Ok(Value::Float(l - r as f64)),
+                    BinOp::Mul => Ok(Value::Float(l * r as f64)),
+                    BinOp::Div => Ok(Value::Float(l / r as f64)),
+                },
+                _ => unimplemented!(),
+            },
             _ => unimplemented!(),
         }
     }
@@ -48,7 +76,7 @@ pub mod tests {
     fn eval_with_empty_input_should_return_empty_output() {
         let mut eval = Evaluator::new();
         let prog = Prog { body: vec![] };
-        let res = eval.eval(&prog);
+        let res = eval.eval(prog);
         assert_eq!(res, Ok(vec![]));
     }
 
@@ -61,7 +89,7 @@ pub mod tests {
                 prec: Precedence::Lowest,
             })],
         };
-        let res = eval.eval(&prog);
+        let res = eval.eval(prog);
         assert_eq!(res, Ok(vec![Value::Int(42)]));
     }
 
@@ -74,7 +102,7 @@ pub mod tests {
                 prec: Precedence::Lowest,
             })],
         };
-        let res = eval.eval(&prog);
+        let res = eval.eval(prog);
         assert_eq!(res, Ok(vec![Value::Float(42.0)]));
     }
 
@@ -87,12 +115,12 @@ pub mod tests {
                 prec: Precedence::Lowest,
             })],
         };
-        let res = eval.eval(&prog);
+        let res = eval.eval(prog);
         assert_eq!(res, Ok(vec![Value::String("hello".to_owned())]));
     }
 
     #[test]
-    fn eval_binary_expr_with_ints_should_return_int() {
+    fn eval_binary_add_expr_with_ints_should_return_int() {
         let mut eval = Evaluator::new();
         let prog = Prog {
             body: vec![Stmt::Expr(Expr {
@@ -110,7 +138,7 @@ pub mod tests {
                 prec: Precedence::Lowest,
             })],
         };
-        let res = eval.eval(&prog);
+        let res = eval.eval(prog);
         assert_eq!(res, Ok(vec![Value::Int(84)]));
     }
 }
