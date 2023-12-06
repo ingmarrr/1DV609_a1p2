@@ -90,4 +90,27 @@ pub mod tests {
         let res = eval.eval(&prog);
         assert_eq!(res, Ok(vec![Value::String("hello".to_owned())]));
     }
+
+    #[test]
+    fn eval_binary_expr_with_ints_should_return_int() {
+        let mut eval = Evaluator::new();
+        let prog = Prog {
+            body: vec![Stmt::Expr(Expr {
+                val: ExprVal::BinOp {
+                    lhs: Box::new(Expr {
+                        val: ExprVal::Int(42),
+                        prec: Precedence::Lowest,
+                    }),
+                    op: crate::parser::BinOp::Add,
+                    rhs: Box::new(Expr {
+                        val: ExprVal::Int(42),
+                        prec: Precedence::Lowest,
+                    }),
+                },
+                prec: Precedence::Lowest,
+            })],
+        };
+        let res = eval.eval(&prog);
+        assert_eq!(res, Ok(vec![Value::Int(84)]));
+    }
 }
