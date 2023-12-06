@@ -107,6 +107,7 @@ where
         let lhs = match token.kind {
             TokenKind::Int 
             | TokenKind::String
+            | TokenKind::Float
             | TokenKind::Ident => Expr {
                 val: ExprVal::from((token.kind, token.lexeme)),
                 prec: Precedence::Lowest,
@@ -135,7 +136,9 @@ where
                 },
                 prec: Precedence::from(token.kind),
             };
-            let new_expr = Self::sink(expr);
+            // println!("Old expr: {:#?}", expr);
+            let new_expr = Self::sink(expr.clone());
+            println!("New expr: {:#?}", new_expr == expr);
             Ok(new_expr)
         }  else {
             Ok(lhs)
@@ -148,7 +151,9 @@ where
                 val: ExprVal::BinOp { lhs, op, rhs },
                 prec,
             } => {
+                println!("Prec Vs Lhs: {} vs {} -> {}", prec as u8, lhs.prec as u8, prec > lhs.prec);
                 if prec > lhs.prec {
+                    println!("Lhs: {:#?}", lhs);
                     if let ExprVal::BinOp { lhs: llhs, op: op2, rhs: lrhs } = lhs.val {
                         if prec > llhs.prec {
                             expr = Expr {
@@ -175,7 +180,7 @@ where
                 };
                 if prec > rhs.prec {
                     if let ExprVal::BinOp { lhs: rlhs, op: op2, rhs: rrhs } = rhs.val {
-                        if prec > rrhs.prec {
+                        if prec > rhs.prec {
                             expr = Expr {
                                 val: ExprVal::BinOp {
                                     lhs: rrhs.clone(),
@@ -204,20 +209,14 @@ where
 
     pub fn lookahead(&mut self) -> Result<&Token, ParseError> {
         if self.tokens.peek().is_none() {
-            return Err(ParseError::UnexpectedToken(Token {
-                kind: TokenKind::Eof,
-                lexeme: String::new(),
-            }));
+            return Err(ParseError::UnexpectedEof);
         }
         Ok(self.tokens.peek().unwrap())
     }
 
     pub fn consume(&mut self) -> Result<Token, ParseError> {
         if self.tokens.peek().is_none() {
-            return Err(ParseError::UnexpectedToken(Token {
-                kind: TokenKind::Eof,
-                lexeme: String::new(),
-            }));
+            return Err(ParseError::UnexpectedEof);
         }
         Ok(self.tokens.next().unwrap().clone())
     }
@@ -243,7 +242,7 @@ where
     pub fn assert(&mut self, kind: TokenKind) -> Result<Token, ParseError> {
         let token = self.consume()?;
         if token.kind != kind {
-            return Err(ParseError::UnexpectedToken(token.clone()));
+            return Err(ParseError::Expected(kind.to_string(), token.kind.to_string()))
         }
         Ok(token)
     }
@@ -307,6 +306,7 @@ impl From<(TokenKind, String)> for ExprVal {
             TokenKind::Int => ExprVal::Int(value.1.parse().unwrap()),
             TokenKind::String => ExprVal::String(value.1),
             TokenKind::Ident => ExprVal::Var(value.1),
+            TokenKind::Float => ExprVal::Float(value.1.parse().unwrap()),
             _ => panic!("Invalid token kind: {:?}", value.0),
         }
     }

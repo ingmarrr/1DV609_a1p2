@@ -81,7 +81,7 @@ pub enum Value {
 
 #[cfg(test)]
 pub mod tests {
-    use crate::parser::{Expr, ExprVal, Precedence, Prog};
+    use crate::parser::{Expr, ExprVal, Parser, Precedence, Prog};
 
     use super::*;
 
@@ -301,5 +301,77 @@ pub mod tests {
         BinOp::Mul,
         ExprVal::String("hello".to_owned()),
         Value::String("hellohellohello".to_owned())
+    );
+
+    #[test]
+    fn eval_binary_expr_should_calculate_numbers_with_correct_precedence() {
+        let mut eval = Evaluator::new();
+        let prog = Prog {
+            body: vec![Stmt::Expr(Expr {
+                val: ExprVal::BinOp {
+                    lhs: Box::new(Expr {
+                        val: ExprVal::Int(2),
+                        prec: Precedence::Lowest,
+                    }),
+                    op: BinOp::Add,
+                    rhs: Box::new(Expr {
+                        val: ExprVal::BinOp {
+                            lhs: Box::new(Expr {
+                                val: ExprVal::Int(3),
+                                prec: Precedence::Lowest,
+                            }),
+                            op: BinOp::Mul,
+                            rhs: Box::new(Expr {
+                                val: ExprVal::Int(4),
+                                prec: Precedence::Lowest,
+                            }),
+                        },
+                        prec: Precedence::Lowest,
+                    }),
+                },
+                prec: Precedence::Lowest,
+            })],
+        };
+        let res = eval.eval(prog);
+        assert_eq!(res, Ok(vec![Value::Int(14)]));
+    }
+
+    macro_rules! prec_test {
+        ($name:ident, $src:expr, $res:expr) => {
+            #[test]
+            fn $name() {
+                let mut parser = Parser::new($src, ());
+                let prog = parser.parse();
+                let mut eval = Evaluator::new();
+                let res = eval.eval(prog);
+                assert_eq!(res, Ok(vec![$res]));
+            }
+        };
+    }
+
+    prec_test!(
+        eval_binary_expr_with_parentheses,
+        "(2 + 3) * 4",
+        Value::Int(20)
+    );
+    prec_test!(
+        eval_binary_expr_with_parentheses_and_precedence,
+        "2 * (3 + 4) * 2",
+        Value::Int(28)
+    );
+    prec_test!(
+        eval_binary_expr_with_parentheses_and_precedence_and_floats,
+        "2.0 * (3.0 + 4.0) * 2.0",
+        Value::Float(28.0)
+    );
+    prec_test!(
+        eval_binary_expr_with_parentheses_and_precedence_and_floats_and_ints,
+        "2 * (3.0 + 4) * 2.0",
+        Value::Float(28.0)
+    );
+    prec_test!(
+        eval_binary_expr_with_parentheses_and_precedence_and_floats_and_ints_and_division,
+        "2 * (3.0 + 4) / 2.0",
+        Value::Float(7.0)
     );
 }

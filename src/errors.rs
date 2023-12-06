@@ -14,6 +14,9 @@ pub enum ParseError {
     #[error("Unexpected token: {0:?}")]
     UnexpectedToken(crate::tokenizer::Token),
 
+    #[error("Unexpected end of input.")]
+    UnexpectedEof,
+
     #[error("Expected: {0} , found: {1}")]
     Expected(String, String),
 
