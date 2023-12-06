@@ -11,7 +11,14 @@ impl Evaluator {
     }
 
     pub fn eval(&mut self, prog: &Prog) -> Result<Vec<Value>, EvalError> {
-        Ok(vec![])
+        let mut res = vec![];
+        for stmt in &prog.body {
+            match stmt {
+                Stmt::Expr(expr) => res.push(Value::Int(42)),
+                _ => unimplemented!(),
+            }
+        }
+        Ok(res)
     }
 }
 
