@@ -64,7 +64,7 @@ impl Evaluator {
                         BinOp::Mul => Ok(Value::String(r.repeat(l as usize))),
                         _ => unreachable!(),
                     },
-                    _ => unimplemented!(),
+                    _ => unreachable!(),
                 }
             }
             _ => unimplemented!(),
@@ -373,5 +373,10 @@ pub mod tests {
         eval_binary_expr_with_parentheses_and_precedence_and_floats_and_ints_and_division,
         "2 * (3.0 + 4) / 2.0",
         Value::Float(7.0)
+    );
+    prec_test!(
+        eval_binary_expr_with_strings,
+        "\"hello\" + \"world\"",
+        Value::String("helloworld".to_owned())
     );
 }

@@ -22,15 +22,13 @@ where
 
     pub fn check(&mut self) -> Result<(), SemanticError> {
         for stmt in &self.prog.body {
-            let res = match stmt {
-                Stmt::Expr(expr) => self.check_expr(expr),
-                _ => unimplemented!(),
-            };
-
-            if let Err(err) = res {
-                self.diag.report(DiagnosticInfo {
-                    message: err.to_string(),
-                });
+            if let Stmt::Expr(expr) = stmt {
+                let res = self.check_expr(expr);
+                if let Err(err) = res {
+                    self.diag.report(DiagnosticInfo {
+                        message: err.to_string(),
+                    });
+                }
             }
         }
         Ok(())
@@ -79,11 +77,58 @@ pub mod tests {
     use super::*;
 
     #[test]
-    fn semantics_check_should_fail_for_unsupported_operators() {
+    fn semantics_check_should_fail_for_unsupported_operators_add() {
         let errs = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
         let mut parser = Parser::new("1 + \"hello\"", errs.clone());
         let prog = parser.parse();
         let _ = Semantic::new(prog, errs.clone()).check();
         assert!(!errs.borrow().is_empty());
+    }
+
+    #[test]
+    fn semantics_check_should_fail_for_unsupported_operators_mul() {
+        let errs = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+        let mut parser = Parser::new("\"hello\" * \"world\"", errs.clone());
+        let prog = parser.parse();
+        let _ = Semantic::new(prog, errs.clone()).check();
+        assert!(!errs.borrow().is_empty());
+    }
+
+    macro_rules! check_expr {
+        ($name:ident, $expr:expr) => {
+            #[test]
+            fn $name() {
+                let errs = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+                let mut parser = Parser::new($expr, errs.clone());
+                let prog = parser.parse();
+                let _ = Semantic::new(prog, errs.clone()).check();
+                assert!(errs.borrow().is_empty());
+            }
+        };
+        ($( $name:ident: $expr:expr );*) => {
+            $( check_expr!($name, $expr); )*
+        };
+    }
+
+    check_expr! {
+        add_int_int: "1 + 2";
+        add_int_float: "1 + 2.0";
+        add_float_int: "1.0 + 2";
+        add_float_float: "1.0 + 2.0";
+        sub_int_int: "1 - 2";
+        sub_int_float: "1 - 2.0";
+        sub_float_int: "1.0 - 2";
+        sub_float_float: "1.0 - 2.0";
+        mul_int_int: "1 * 2";
+        mul_int_float: "1 * 2.0";
+        mul_float_int: "1.0 * 2";
+        mul_float_float: "1.0 * 2.0";
+        mul_string_int: "\"hello\" * 2";
+        mul_int_string: "2 * \"hello\"";
+        div_int_int: "1 / 2";
+        div_int_float: "1 / 2.0";
+        div_float_int: "1.0 / 2";
+        div_float_float: "1.0 / 2.0";
+        var_int: "x"
     }
 }

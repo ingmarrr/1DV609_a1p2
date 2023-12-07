@@ -2,7 +2,7 @@ pub trait Diagnostic: Clone {
     fn report(&mut self, info: DiagnosticInfo);
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct DiagnosticInfo {
     pub message: String,
 }

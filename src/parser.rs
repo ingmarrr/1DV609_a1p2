@@ -63,7 +63,7 @@ where
     }
 
     pub fn parse_let(&mut self) -> Result<Let, ParseError> {
-        self.assert(TokenKind::Let)?;
+        let _ = self.assert(TokenKind::Let)?;
         let name = self.assert(TokenKind::Ident)?;
         let ty = match self.consume_if(TokenKind::Colon) {
             Some(_) => {
@@ -136,9 +136,7 @@ where
                 },
                 prec: Precedence::from(token.kind),
             };
-            // println!("Old expr: {:#?}", expr);
             let new_expr = Self::sink(expr.clone());
-            println!("New expr: {:#?}", new_expr == expr);
             Ok(new_expr)
         }  else {
             Ok(lhs)
@@ -151,33 +149,6 @@ where
                 val: ExprVal::BinOp { lhs, op, rhs },
                 prec,
             } => {
-                println!("Prec Vs Lhs: {} vs {} -> {}", prec as u8, lhs.prec as u8, prec > lhs.prec);
-                if prec > lhs.prec {
-                    println!("Lhs: {:#?}", lhs);
-                    if let ExprVal::BinOp { lhs: llhs, op: op2, rhs: lrhs } = lhs.val {
-                        if prec > llhs.prec {
-                            expr = Expr {
-                                val: ExprVal::BinOp {
-                                    lhs: Box::new(Self::sink(Expr {
-                                        val: ExprVal::BinOp {
-                                            lhs: lrhs,
-                                            op: op.clone(),
-                                            rhs: rhs.clone(),
-                                        },
-                                        prec,
-                                    })),
-                                    op: op2,
-                                    rhs: llhs,
-                                },
-                                prec,
-                            };
-                        }
-                    };
-                } 
-                let (lhs, op, rhs) = match expr.clone().val {
-                    ExprVal::BinOp { lhs, op, rhs } => (lhs, op, rhs),
-                    _ => return expr,
-                };
                 if prec > rhs.prec {
                     if let ExprVal::BinOp { lhs: rlhs, op: op2, rhs: rrhs } = rhs.val {
                         if prec > rhs.prec {
@@ -203,7 +174,7 @@ where
                     expr
                 }
             }
-            _ => expr
+            _ => unreachable!()
         }
     }
 
@@ -270,14 +241,14 @@ pub enum Stmt {
     Expr(Expr),
 }
 
-#[cfg_attr(test, derive(PartialEq, Clone))]
+#[cfg_attr(test, derive(PartialEq))]
 #[derive(Debug)]
 pub enum Decl {
     Let(Let)
 }
 
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq)]
 pub struct Let {
     pub name: String,
     pub ty: Ty,
@@ -347,22 +318,8 @@ pub enum ExprVal {
     },
 }
 
-impl ExprVal {
-    pub fn precedence(&self) -> Precedence {
-        match self {
-            ExprVal::String(_) |
-            ExprVal::Int(_) |
-            ExprVal::Float(_) |
-            ExprVal::Var(_) => Precedence::Lowest,
-            ExprVal::BinOp { op, .. } => match op {
-                BinOp::Add | BinOp::Sub => Precedence::Additive,
-                BinOp::Mul | BinOp::Div => Precedence::Multiplicative,
-            },
-        }
-    }
-}
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Clone, Copy)]
 pub enum Precedence {
     Lowest = 0,
     Additive,
@@ -382,7 +339,7 @@ impl From<TokenKind> for Precedence {
             TokenKind::Pow |
             TokenKind::Mul |
             TokenKind::Div => Precedence::Multiplicative,
-            _ => todo!()
+            _ => Precedence::Lowest,
         }
     }
 }
@@ -563,7 +520,7 @@ mod tests {
 
     #[test]
     fn two_parenthesized_expressions_have_same_precedence() {
-        let mut parser = Parser::new("(1 + 2) * (3 + 4)", ());
+        let mut parser = Parser::new("(1 + 2) * (3 - 4)", ());
         let node = parser.parse_expr().unwrap();
         let (lhs, rhs) = match node.val {
             ExprVal::BinOp { lhs, rhs, .. } => (*lhs, *rhs),
@@ -667,7 +624,7 @@ mod tests {
     }
     
     #[test]
-    fn parse_statement_should_return_let() {
+    fn parse_statement_should_return_let_with_inferred_type_int() {
         let mut parser = Parser::new("let x = 1", ());
         let node = parser.parse_let().unwrap();
         assert_eq! {
@@ -684,16 +641,16 @@ mod tests {
     }
 
     #[test]
-    fn parse_statement_should_return_let_with_type() {
-        let mut parser = Parser::new("let x: int = 1", ());
+    fn parse_statement_should_return_let_with_inferred_type_str() {
+        let mut parser = Parser::new("let x = \"Hello World\"", ());
         let node = parser.parse_let().unwrap();
         assert_eq! {
             node,
             Let {
                 name: "x".into(),
-                ty: Ty::Int,
+                ty: Ty::String,
                 expr: Expr {
-                    val: ExprVal::Int(1),
+                    val: ExprVal::String("Hello World".into()),
                     prec: Precedence::Lowest,
                 }
             }
@@ -701,8 +658,27 @@ mod tests {
     }
 
     #[test]
+    fn parse_statement_should_return_let_with_type_int() {
+        let errs = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+        let mut parser = Parser::new("let x: int = 1", errs.clone());
+        let prog = parser.parse();
+        assert!(errs.borrow().is_empty());
+        assert_eq! {
+            prog.body,
+            vec![Stmt::Decl(Decl::Let(Let {
+                name: "x".into(),
+                ty: Ty::Int,
+                expr: Expr {
+                    val: ExprVal::Int(1),
+                    prec: Precedence::Lowest,
+                }
+            }))]
+        }
+    }
+
+    #[test]
     fn parse_statement_should_return_let_with_string_expr() {
-        let mut parser = Parser::new("let x = \"Hello World :D\"", ());
+        let mut parser = Parser::new("let x: str = \"Hello World :D\"", ());
         let node = parser.parse_let().unwrap();
         assert_eq! {
             node,
@@ -731,6 +707,167 @@ mod tests {
                     prec: Precedence::Lowest,
                 }
             }
+        }
+    }
+
+    #[test]
+    fn parse_let_statement_with_add_expression_should_return_let() {
+        let mut parser = Parser::new("let x = 2 * 3", ());
+        let node = parser.parse().body;
+        assert_eq! {
+            node,
+            vec![Stmt::Decl(Decl::Let(Let {
+                name: "x".into(),
+                ty: Ty::Unknown,
+                expr: Expr {
+                    val: ExprVal::BinOp {
+                        lhs: Box::new(Expr {
+                            val: ExprVal::Int(2),
+                            prec: Precedence::Lowest,
+                        }),
+                        op: BinOp::Mul,
+                        rhs: Box::new(Expr {
+                            val: ExprVal::Int(3),
+                            prec: Precedence::Lowest,
+                        }),
+                    },
+                    prec: Precedence::Multiplicative,
+                }
+            }))]
+        }
+    }
+
+    #[test]
+    fn parse_let_statement_with_add_expression_should_return_let_with_type() {
+        let mut parser = Parser::new("let x: int = 2 * 3", ());
+        let node = parser.parse().body;
+        assert_eq! {
+            node,
+            vec![Stmt::Decl(Decl::Let(Let {
+                name: "x".into(),
+                ty: Ty::Int,
+                expr: Expr {
+                    val: ExprVal::BinOp {
+                        lhs: Box::new(Expr {
+                            val: ExprVal::Int(2),
+                            prec: Precedence::Lowest,
+                        }),
+                        op: BinOp::Mul,
+                        rhs: Box::new(Expr {
+                            val: ExprVal::Int(3),
+                            prec: Precedence::Lowest,
+                        }),
+                    },
+                    prec: Precedence::Multiplicative,
+                }
+            }))]
+        }
+    }
+
+    #[test]
+    fn parse_let_statement_without_expression_should_return_error() {
+        let errs = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+        let mut parser = Parser::new("let x = ", errs.clone());
+        let node = parser.parse().body;
+        assert_eq! {
+            node,
+            vec![]
+        }
+        let expected = vec![
+            DiagnosticInfo {
+                message: "Unexpected end of input.".to_string(),
+            }
+        ];
+        assert_eq! {
+            errs.take(),
+            expected
+        }
+    }
+
+    #[test]
+    fn parse_let_statement_should_error_on_missing_name() {
+        let errs = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+        let mut parser = Parser::new("let = 1", errs.clone());
+        let node = parser.parse_let();
+        assert!(node.is_err());
+        assert_eq! {
+            node.unwrap_err(),
+            ParseError::Expected("identifier".to_string(), "=".to_string())
+        }
+    }
+
+    #[test]
+    fn parse_let_statement_with_invalid_type() {
+        let errs = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+        let mut parser = Parser::new("let x: bool = 1", errs.clone());
+        let node = parser.parse_let();
+        assert!(node.is_err());
+        assert_eq! {
+            node.unwrap_err(),
+            ParseError::Expected("int | str".to_string(), "identifier".to_string())
+        }
+    }
+
+    #[test]
+    fn parse_let_statement_missing_eq_sign() {
+        let errs = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+        let mut parser = Parser::new("let x: int 1", errs.clone());
+        let node = parser.parse_let();
+        assert!(node.is_err());
+        assert_eq! {
+            node.unwrap_err(),
+            ParseError::Expected("=".to_string(), "integer".to_string())
+        }
+    }
+
+    #[test]
+    fn parse_expr_with_error_should_report_error() {
+        let errs = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+        let mut parser = Parser::new("1 + ", errs.clone());
+        let _ = parser.parse();
+        assert!(!errs.borrow().is_empty());
+        let expected = vec![
+            DiagnosticInfo {
+                message: "Unexpected end of input.".to_string(),
+            }
+        ];
+        assert_eq! {
+            errs.take(),
+            expected
+        }
+    }
+
+    #[test]
+    fn parse_expr_should_return_unexpected_token_on_invalid_token_for_expression() {
+        let errs = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+        let mut parser = Parser::new("1 + ?", errs.clone());
+        let _ = parser.parse();
+        assert!(!errs.borrow().is_empty());
+        let expected = vec![
+            DiagnosticInfo {
+                message: "Unexpected token: Token { kind: Question, lexeme: \"?\" }".to_string(),
+            }
+        ];
+        assert_eq! {
+            errs.take(),
+            expected
+        }
+    }
+
+    #[test]
+    fn parse_expr_should_return_err_on_missing_closing_rparen() {
+        let errs = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+        let mut parser = Parser::new("(1 + 2", errs.clone());
+        let _ = parser.parse();
+        assert!(!errs.borrow().is_empty());
+        let expected = vec![
+            DiagnosticInfo {
+                message: "Unexpected end of input.".to_string(),
+            }
+        ];
+        assert_eq! {
+            errs.take(),
+            expected
         }
     }
 
